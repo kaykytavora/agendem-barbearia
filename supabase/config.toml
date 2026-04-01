@@ -34,3 +34,7 @@ verify_jwt = false
 [functions.send-employee-invite]
 enabled = true
 verify_jwt = true
+
+[functions.create-employee-account]
+enabled = true
+verify_jwt = true

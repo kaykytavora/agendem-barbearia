@@ -265,7 +265,7 @@ export default function Team() {
         });
       }
     } else {
-      // --- MODO CRIAÇÃO (CONVITE) ---
+      // --- MODO CRIAÇÃO (CONVITE POR EMAIL) ---
       try {
         const barbeariaId = (await supabase.rpc('get_user_barbearia_id', { user_uuid: user!.id })).data;
 
@@ -280,36 +280,32 @@ export default function Team() {
           .eq('id', barbeariaId)
           .maybeSingle();
 
-        const funcionarioData = {
-          nome: formData.nome,
-          especialidade: formData.especialidade,
-          nivel_permissao: uiToDbPermission(formData.nivel_permissao),
-          foto_url: formData.foto_url,
-        };
-
-        // Chamar edge function para enviar convite
+        // Chamar edge function para enviar convite por email
         const { data, error } = await supabase.functions.invoke('send-employee-invite', {
           body: {
             email: formData.email,
-            funcionarioData,
+            nome: formData.nome,
+            especialidade: formData.especialidade,
+            nivel_permissao: uiToDbPermission(formData.nivel_permissao),
+            foto_url: formData.foto_url,
             barbeariaId,
             barbeariaName: barbeariaData?.nome || 'Barbearia'
           }
         });
 
         if (error) {
-          console.error('Erro ao invocar edge function:', error);
-          throw new Error(error.message || 'Falha ao enviar convite por email');
+          console.error('Erro ao enviar convite:', error);
+          throw new Error(error.message || 'Falha ao enviar convite');
         }
 
-        // Verificar se o response indica sucesso
         if (!data || data.success !== true) {
-          throw new Error(data?.error || 'Falha ao processar convite');
+          throw new Error(data?.error || 'Falha ao enviar convite');
         }
 
         toast({
-          title: "✅ Convite enviado com sucesso!",
-          description: `📧 Convite enviado para ${formData.email}. O funcionário receberá um email para aceitar o convite e criar sua conta.`,
+          title: "✅ Convite enviado!",
+          description: `Email de convite enviado para ${formData.email}`,
+          duration: 8000,
         });
 
         setIsDialogOpen(false);
@@ -322,11 +318,9 @@ export default function Team() {
 
         if (error instanceof Error) {
           if (error.message.includes("Permission denied") || error.message.includes("403")) {
-            errorMessage = "Você não tem permissão para enviar convites. Verifique se você é administrador.";
-          } else if (error.message.includes("Invalid email") || error.message.includes("email")) {
-            errorMessage = "Email inválido. Verifique o endereço de email e tente novamente.";
-          } else if (error.message.includes("RESEND_API_KEY") || error.message.includes("configuração")) {
-            errorMessage = "Erro de configuração do sistema. Entre em contato com o suporte técnico.";
+            errorMessage = "Você não tem permissão para enviar convites.";
+          } else if (error.message.includes("email") || error.message.includes("Email")) {
+            errorMessage = "Email inválido ou já está em uso.";
           } else {
             errorMessage = error.message;
           }
@@ -544,13 +538,13 @@ export default function Team() {
                   {editingEmployee ? "Editar Funcionário" : "Convidar Funcionário"}
                 </Button>
               </DialogTrigger>
-              <DialogContent className="w-[95vw] max-w-md mx-auto">
+                <DialogContent className="w-[95vw] max-w-md mx-auto">
                 <DialogHeader>
                   <DialogTitle className="text-lg sm:text-xl">
-                    {editingEmployee ? "Editar Funcionário" : "Convidar Novo Funcionário"}
+                    {editingEmployee ? "Editar Funcionário" : "Adicionar Funcionário"}
                   </DialogTitle>
                   <DialogDescription className="text-sm sm:text-base">
-                    {editingEmployee ? "Edite as informações do funcionário" : "Envie um convite por email para adicionar um novo funcionário à equipe"}
+                    {editingEmployee ? "Edite as informações do funcionário" : "Crie uma conta para um novo funcionário"}
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
