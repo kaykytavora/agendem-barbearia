@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Ícones PWA</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        canvas {
+            border: 1px solid #ddd;
+            margin: 10px;
+            border-radius: 8px;
+        }
+        .buttons {
+            margin: 20px 0;
+        }
+        button {
+            background: #6c47ff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #5a38f0;
+        }
+        .icon-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Gerador de Ícones PWA - Agendem</h1>
+        <p>Clique nos botões abaixo para gerar e baixar os ícones em alta qualidade:</p>
+
+        <div class="buttons">
+            <button onclick="generateIcon(192)">Gerar Ícone 192x192</button>
+            <button onclick="generateIcon(512)">Gerar Ícone 512x512</button>
+        </div>
+
+        <div class="icon-preview">
+            <canvas id="canvas192" width="192" height="192"></canvas>
+            <canvas id="canvas512" width="512" height="512"></canvas>
+        </div>
+    </div>
+
+    <script>
+        function drawIcon(ctx, size) {
+            // Background gradient
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#6c47ff');
+            gradient.addColorStop(1, '#4f46e5');
+
+            // Draw background circle with safe zone
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(size/2, size/2, size/2.5, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Add shadow effect
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+            ctx.shadowBlur = size/20;
+            ctx.shadowOffsetY = size/50;
+
+            // Draw the letter A
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `bold ${size/3}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('A', size/2, size/2);
+
+            // Remove shadow for decorative elements
+            ctx.shadowColor = 'transparent';
+
+            // Draw decorative dots (representing appointments)
+            ctx.fillStyle = '#ffffff';
+            const dotSize = size/40;
+            const dotY = size * 0.75;
+
+            for (let i = -1; i <= 1; i++) {
+                ctx.beginPath();
+                ctx.arc(size/2 + i * size/8, dotY, dotSize, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+
+            // Draw small calendar icon at top
+            const calSize = size/20;
+            const calX = size/2 - calSize;
+            const calY = size * 0.25;
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(calX, calY, calSize * 2, calSize * 1.5);
+
+            ctx.fillStyle = '#6c47ff';
+            ctx.fillRect(calX + calSize/4, calY + calSize/3, calSize * 1.5, calSize);
+        }
+
+        function generateIcon(size) {
+            const canvas = document.getElementById(`canvas${size}`);
+            const ctx = canvas.getContext('2d');
+
+            // Clear canvas
+            ctx.clearRect(0, 0, size, size);
+
+            // Draw icon
+            drawIcon(ctx, size);
+
+            // Download
+            canvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `icon-${size}x${size}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 'image/png', 1.0);
+        }
+
+        // Generate initial previews
+        window.addEventListener('load', function() {
+            generateIcon(192);
+            generateIcon(512);
+        });
+    </script>
+</body>
+</html>

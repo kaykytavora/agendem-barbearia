@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>Agendem - Agendamento de Barbearias</title>
+    <meta name="description" content="Encontre e agende serviços nas melhores barbearias da sua região. Sistema completo com geolocalização e programa de fidelidade." />
+    <meta name="author" content="Agendem" />
+    <meta name="keywords" content="barbearia, agendamento, cabelo, barba, salão, beleza, masculina" />
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#6c47ff" />
+    <meta name="background-color" content="#010105" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Agendem" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="Agendem" />
+    <meta name="msapplication-TileColor" content="#6c47ff" />
+    <meta name="msapplication-config" content="/browserconfig.xml" />
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Favicon and Icons -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/svg+xml" href="/icons/icon-new.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512x512.png" />
+
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/icons/icon-new.svg" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192x192.png" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Agendem - Agendamento de Barbearias" />
+    <meta property="og:description" content="Encontre e agende serviços nas melhores barbearias da sua região." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.agendem.com/" />
+    <meta property="og:image" content="https://www.agendem.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:site_name" content="Agendem" />
+    <meta property="og:locale" content="pt_BR" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Agendem - Agendamento de Barbearias" />
+    <meta name="twitter:description" content="Encontre e agende serviços nas melhores barbearias da sua região." />
+    <meta name="twitter:image" content="https://www.agendem.com/og-image.png" />
+    <meta name="twitter:image:alt" content="Agendem - Agendamento de Barbearias" />
+
+    <!-- Performance and Security -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="//fonts.googleapis.com" />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- PWA Service Worker Status -->
+    <noscript>
+      <div style="position: fixed; top: 0; left: 0; width: 100%; background: #f59e0b; color: #000; text-align: center; padding: 10px; z-index: 9999;">
+        JavaScript é necessário para o funcionamento completo do aplicativo.
+      </div>
+    </noscript>
+  </body>
+</html>

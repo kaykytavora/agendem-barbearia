@@ -1,0 +1,146 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design system para SaaS de agendamento - tema escuro moderno */
+
+@layer base {
+  :root {
+    /* Tema Escuro - Principal */
+    --background: 222 14% 8%;
+    --foreground: 210 40% 98%;
+
+    --card: 224 15% 11%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 224 15% 11%;
+    --popover-foreground: 210 40% 98%;
+
+    /* Cores primárias - Gradiente roxo/azul */
+    --primary: 262 83% 58%;
+    --primary-foreground: 210 40% 98%;
+    --primary-muted: 262 60% 40%;
+
+    /* Cores secundárias */
+    --secondary: 220 13% 18%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 220 13% 15%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 262 83% 58%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 220 13% 18%;
+    --input: 220 13% 18%;
+    --ring: 262 83% 58%;
+
+    --radius: 0.75rem;
+
+    /* Gradientes personalizados */
+    --gradient-primary: linear-gradient(135deg, hsl(262 83% 58%), hsl(252 83% 68%));
+    --gradient-secondary: linear-gradient(135deg, hsl(220 13% 18%), hsl(220 13% 22%));
+    --gradient-bg: linear-gradient(180deg, hsl(222 14% 8%), hsl(224 15% 10%));
+
+    /* Sombras elegantes */
+    --shadow-sm: 0 2px 8px -2px hsl(262 83% 58% / 0.1);
+    --shadow-md: 0 8px 24px -4px hsl(262 83% 58% / 0.15);
+    --shadow-lg: 0 20px 48px -8px hsl(262 83% 58% / 0.2);
+    --shadow-glow: 0 0 40px hsl(262 83% 58% / 0.3);
+
+    /* Transições suaves */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-fast: all 0.15s ease-out;
+  }
+
+
+  /* Modo claro - definições unificadas */
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 222 14% 15%;
+    
+    --card: 0 0% 99%;
+    --card-foreground: 222 14% 15%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 14% 15%;
+    
+    --primary: 262 83% 55%;
+    --primary-foreground: 0 0% 100%;
+    --primary-muted: 262 60% 70%;
+    
+    --secondary: 210 30% 95%;
+    --secondary-foreground: 222 14% 15%;
+    
+    --muted: 210 30% 95%;
+    --muted-foreground: 215 16% 40%;
+    
+    --accent: 262 83% 55%;
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: 0 84% 55%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Bordas com mais contraste no modo claro */
+    --border: 214 25% 82%;
+    --input: 214 25% 85%;
+    --ring: 262 83% 55%;
+    
+    /* Gradientes para modo claro */
+    --gradient-primary: linear-gradient(135deg, hsl(262 83% 55%), hsl(252 83% 65%));
+    --gradient-secondary: linear-gradient(135deg, hsl(210 30% 96%), hsl(214 25% 90%));
+    --gradient-bg: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 30% 97%));
+    
+    /* Sombras para modo claro */
+    --shadow-sm: 0 2px 8px -2px hsl(262 83% 55% / 0.1);
+    --shadow-md: 0 8px 24px -4px hsl(262 83% 55% / 0.15);
+    --shadow-lg: 0 16px 40px -8px hsl(262 83% 55% / 0.2);
+    --shadow-glow: 0 0 32px hsl(262 83% 55% / 0.25);
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 220 14% 20%;
+    --sidebar-primary: 222 14% 15%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 30% 94%;
+    --sidebar-accent-foreground: 222 14% 15%;
+    --sidebar-border: 214 25% 85%;
+    --sidebar-ring: 262 83% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+ 
+@keyframes pulse-bg {
+  0%, 100% {
+    background-color: hsl(var(--card));
+  }
+  50% {
+    background-color: hsl(var(--primary) / 0.1);
+  }
+}
+
+.animate-pulse-bg {
+  animation: pulse-bg 2s ease-in-out;
+}
+
+/* Mobile Bottom Navigation Safe Area */
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Ensure mobile navbar is above other content */
+@media (max-width: 768px) {
+  .mobile-nav-container {
+    z-index: 9999;
+  }
+}
