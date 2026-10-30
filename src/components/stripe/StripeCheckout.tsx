@@ -44,7 +44,6 @@ const plans: Plan[] = [
       "Agendamentos ilimitados",
       "Até 5 funcionários",
       "Relatórios avançados",
-      "Programa de fidelidade",
       "Suporte prioritário",
       "Integrações avançadas",
       "WhatsApp Business API"

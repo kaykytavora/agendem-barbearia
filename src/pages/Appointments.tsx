@@ -189,23 +189,7 @@ export default function Appointments() {
 			status: "pendente" | "confirmado" | "cancelado" | "finalizado",
 			appointment?: Appointment
 		}) => {
-			// Se for finalizado, usar a Edge Function que inclui feedback e pontos
-			if (status === 'finalizado') {
-				const { error: edgeFunctionError } = await supabase.functions.invoke('appointments-update-status', {
-					body: {
-						id: id,
-						new_status: status
-					}
-				});
-
-				if (edgeFunctionError) {
-					throw new Error(`Erro ao finalizar agendamento: ${edgeFunctionError.message}`);
-				}
-
-				return status;
-			}
-
-			// Para outros status, usar update direto
+			// Ao finalizar, o banco cria a avaliação pendente sozinho
 			const updateData: any = { status };
 
 			if (appointment && !appointment.user_id && appointment.cliente_telefone) {
@@ -615,8 +599,8 @@ export default function Appointments() {
 																			<AlertDialogDescription>
 																				Marcar este agendamento como
 																				finalizado irá adicioná-lo ao
-																				histórico e liberar pontos de
-																				fidelidade para o cliente.
+																				histórico e liberar a avaliação
+																				para o cliente.
 																			</AlertDialogDescription>
 																		</AlertDialogHeader>
 																		<AlertDialogFooter>

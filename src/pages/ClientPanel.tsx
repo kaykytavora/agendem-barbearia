@@ -8,7 +8,6 @@ import {
 	User,
 	Calendar,
 	Star,
-	Gift,
 	Clock,
 	History,
 	LogOut,
@@ -19,7 +18,6 @@ import {
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -139,7 +137,6 @@ const ClientPanel = () => {
 	const profileUserId = profile?.user_id;
 
 	const appointmentsQueryKey = (type: 'upcoming' | 'past') => ['appointments', type, profileUserId];
-	const fidelidadeQueryKey = ['fidelidade', profileUserId];
 	const pendingFeedbacksQueryKey = ['pendingFeedbacks', profileUserId];
 
 	// Fetch de agendamentos futuros com React Query
@@ -166,40 +163,6 @@ const ClientPanel = () => {
 		queryFn: () => getPastAppointments(profileUserId!),
 		enabled: !!profileUserId,
 		refetchOnWindowFocus: false,
-	});
-
-	// Fetch de fidelidade com React Query
-	const {
-		data: fidelidade,
-		isLoading: isLoadingFidelidade,
-		isError: isErrorFidelidade,
-		error: errorFidelidade,
-	} = useQuery({
-		queryKey: fidelidadeQueryKey,
-		queryFn: async () => {
-			if (!profile?.phone) return [];
-			const { data, error } = await supabase
-				.from("fidelidade")
-				.select(`
-					id,
-					pontos,
-					barbearia_id,
-					barbearias!inner(
-						nome,
-						endereco
-					)
-				`)
-				.eq("cliente_telefone", profile.phone);
-			if (error) {
-				console.error("Erro ao buscar dados de fidelidade:", error);
-				return [];
-			}
-			return data || [];
-		},
-		enabled: !!profile?.phone,
-		staleTime: 0, // Sempre buscar dados frescos
-		refetchOnWindowFocus: true, // Atualizar quando a janela ganha foco
-		refetchOnMount: true, // Sempre refetch ao montar o componente
 	});
 
 	// Fetch de feedbacks pendentes
@@ -237,15 +200,6 @@ const ClientPanel = () => {
 				variant: "destructive",
 			});
 		}
-		if (isErrorFidelidade) {
-			toast({
-				title: "Erro ao buscar fidelidade",
-				description:
-					(errorFidelidade as Error)?.message ||
-					"Não foi possível carregar seus pontos.",
-				variant: "destructive",
-			});
-		}
 		if (isErrorFeedbacks) {
 			toast({
 				title: "Erro ao buscar avaliações",
@@ -267,12 +221,10 @@ const ClientPanel = () => {
 	}, [
 		isErrorUpcoming,
 		isErrorPast,
-		isErrorFidelidade,
 		isErrorFeedbacks,
 		isErrorUserFeedbacks,
 		errorUpcoming,
 		errorPast,
-		errorFidelidade,
 		errorFeedbacks,
 		errorUserFeedbacks,
 		toast,
@@ -286,7 +238,6 @@ const ClientPanel = () => {
 		onUpdate: () => {
 			queryClient.invalidateQueries({ queryKey: ['appointments', 'upcoming', profileUserId] });
 			queryClient.invalidateQueries({ queryKey: ['appointments', 'past', profileUserId] });
-			queryClient.invalidateQueries({ queryKey: ['fidelidade', profileUserId] });
 		},
 		enabled: !!profileUserId,
 		delay: 1500
@@ -303,7 +254,7 @@ const ClientPanel = () => {
 		delay: 2000
 	});
 
-	const loading = isLoadingUpcoming || isLoadingPast || isLoadingFidelidade || isLoadingFeedbacks || isLoadingUserFeedbacks;
+	const loading = isLoadingUpcoming || isLoadingPast || isLoadingFeedbacks || isLoadingUserFeedbacks;
 
 	const handleLogout = async () => {
 		await signOut();
@@ -742,40 +693,6 @@ const ClientPanel = () => {
 
 					{/* Sidebar */}
 					<div className={`${isMobile ? 'space-y-4' : 'space-y-6'}`}>
-						{/* Pontos de Fidelidade */}
-						<Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-							<CardHeader className={isMobile ? 'p-4' : ''}>
-								<CardTitle className={`flex items-center gap-2 ${isMobile ? 'text-lg' : ''}`}>
-									<Gift className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} text-primary`} />
-									Meus Pontos de Fidelidade
-								</CardTitle>
-							</CardHeader>
-							<CardContent className={isMobile ? 'p-4' : ''}>
-								{(fidelidade || []).length > 0 ? (
-									<div className={`${isMobile ? 'space-y-2' : 'space-y-3'}`}>
-										{(fidelidade || []).map((f, index) => (
-											<div key={index}>
-												<p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>
-													{f.barbearias?.nome || "Barbearia"}
-												</p>
-												<div className="flex items-center gap-2">
-													<Star className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'} text-yellow-400 fill-yellow-400`} />
-													<span className={`${isMobile ? 'text-base' : 'text-lg'} font-bold`}>{f.pontos}</span>
-													<span className={`${isMobile ? 'text-xs' : 'text-sm'} text-muted-foreground`}>
-														pontos
-													</span>
-												</div>
-											</div>
-										))}
-									</div>
-								) : (
-									<p className={`text-muted-foreground ${isMobile ? 'text-sm' : ''}`}>
-										Você ainda não acumulou pontos de fidelidade.
-									</p>
-								)}
-							</CardContent>
-						</Card>
-
 						{/* Quick Actions */}
 						<Card className="border-border/50 bg-card/50 backdrop-blur-sm">
 							<CardHeader className={isMobile ? 'p-4' : ''}>
@@ -797,14 +714,6 @@ const ClientPanel = () => {
 								>
 									<History className={`${isMobile ? 'w-3 h-3 mr-2' : 'w-4 h-4 mr-2'}`} />
 									Histórico Completo
-								</Button>
-								<Button
-									variant="outline"
-									className={`w-full ${isMobile ? 'text-sm py-2' : ''}`}
-									onClick={() => navigate("/minhas-recompensas")}
-								>
-									<Gift className={`${isMobile ? 'w-3 h-3 mr-2' : 'w-4 h-4 mr-2'}`} />
-									Minhas Recompensas
 								</Button>
 								<Button
 									variant="outline"

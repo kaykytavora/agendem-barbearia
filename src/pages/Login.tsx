@@ -227,7 +227,7 @@ export default function Login() {
 							A plataforma completa para sua barbearia
 						</h2>
 						<p className="text-muted-foreground">
-							Gerencie agendamentos, clientes e fidelidade em um só lugar.
+							Gerencie agendamentos, clientes e equipe em um só lugar.
 						</p>
 					</div>
 				</div>

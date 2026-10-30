@@ -333,18 +333,11 @@ const BarberShopDetails = () => {
       let data, error;
 
       if (!isClientLoggedIn) {
-        // Para usuários anônimos, usar Edge Function que tem privilégios administrativos
-        const { data: functionData, error: functionError } = await supabase.functions.invoke('create-anonymous-booking', {
-          body: bookingData
-        });
-
-        if (functionError) {
-          error = functionError;
-        } else if (functionData?.success) {
-          data = functionData.data;
-        } else {
-          error = new Error(functionData?.error || 'Failed to create booking');
-        }
+        // Visitantes podem criar agendamentos, mas não ler a linha criada; por isso o id nasce aqui
+        const novoAgendamento = { ...bookingData, id: crypto.randomUUID() };
+        const result = await supabase.from('agendamentos').insert(novoAgendamento);
+        data = novoAgendamento;
+        error = result.error;
       } else {
         // Para usuários logados, usar método normal
         const result = await supabase.from('agendamentos').insert(bookingData).select('*').single();
@@ -355,6 +348,10 @@ const BarberShopDetails = () => {
       if (error) {
         console.error("Erro ao salvar agendamento:", error);
         console.error("Dados enviados:", bookingData);
+        if (error.message?.includes('HORARIO_OCUPADO')) {
+          await refetchBarbershop();
+          throw new Error("Esse horário acabou de ser reservado. Escolha outro.");
+        }
         throw new Error("Não foi possível salvar seu agendamento. Verifique os dados e tente novamente.");
       }
 
@@ -370,7 +367,7 @@ const BarberShopDetails = () => {
             funcionarios:funcionario_id (nome),
             barbearias:barbearia_id (nome, endereco, telefone)
           `)
-          .eq('id', data.id)
+          .eq('id', data!.id)
           .single();
 
         if (fetchDataError) {
@@ -758,7 +755,7 @@ const BarberShopDetails = () => {
                     />
                     <div className="space-y-1">
                       <Label htmlFor="createAccount" className="leading-none">Criar conta para agendar mais rápido</Label>
-                      <p className="text-sm text-muted-foreground">Veja seu histórico e acumule pontos de fidelidade.</p>
+                      <p className="text-sm text-muted-foreground">Veja seu histórico e acompanhe seus agendamentos.</p>
                     </div>
                   </div>
                 )}

@@ -239,7 +239,6 @@ export type Database = {
           descricao: string | null
           email_contato: string | null
           endereco: string | null
-          fidelidade_ativa: boolean
           gallery_urls: string[] | null
           id: string
           logo_url: string | null
@@ -259,7 +258,6 @@ export type Database = {
           descricao?: string | null
           email_contato?: string | null
           endereco?: string | null
-          fidelidade_ativa?: boolean
           gallery_urls?: string[] | null
           id?: string
           logo_url?: string | null
@@ -279,7 +277,6 @@ export type Database = {
           descricao?: string | null
           email_contato?: string | null
           endereco?: string | null
-          fidelidade_ativa?: boolean
           gallery_urls?: string[] | null
           id?: string
           logo_url?: string | null
@@ -391,100 +388,6 @@ export type Database = {
           },
         ]
       }
-      fidelidade: {
-        Row: {
-          barbearia_id: string
-          cliente_telefone: string | null
-          id: string
-          pontos: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          barbearia_id: string
-          cliente_telefone?: string | null
-          id?: string
-          pontos?: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          barbearia_id?: string
-          cliente_telefone?: string | null
-          id?: string
-          pontos?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fidelidade_barbearia_id_fkey"
-            columns: ["barbearia_id"]
-            isOneToOne: false
-            referencedRelation: "barbearias"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fidelidade_barbearia_id_fkey"
-            columns: ["barbearia_id"]
-            isOneToOne: false
-            referencedRelation: "barbearias_public"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fidelidade_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["user_id"]
-          },
-        ]
-      }
-      fidelidade_configuracoes: {
-        Row: {
-          barbearia_id: string
-          created_at: string
-          dias_expiracao: number | null
-          id: string
-          pontos_minimos_recompensa: number | null
-          pontos_por_servico: number
-          updated_at: string
-        }
-        Insert: {
-          barbearia_id: string
-          created_at?: string
-          dias_expiracao?: number | null
-          id?: string
-          pontos_minimos_recompensa?: number | null
-          pontos_por_servico?: number
-          updated_at?: string
-        }
-        Update: {
-          barbearia_id?: string
-          created_at?: string
-          dias_expiracao?: number | null
-          id?: string
-          pontos_minimos_recompensa?: number | null
-          pontos_por_servico?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fidelidade_configuracoes_barbearia_id_fkey"
-            columns: ["barbearia_id"]
-            isOneToOne: true
-            referencedRelation: "barbearias"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fidelidade_configuracoes_barbearia_id_fkey"
-            columns: ["barbearia_id"]
-            isOneToOne: true
-            referencedRelation: "barbearias_public"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       funcionario_ausencias: {
         Row: {
           barbearia_id: string
@@ -549,45 +452,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      funcionario_convites: {
-        Row: {
-          barbearia_id: string
-          created_at: string
-          created_by: string | null
-          email: string
-          expires_at: string
-          funcionario_data: Json
-          id: string
-          token: string | null
-          updated_at: string
-          usado: boolean
-        }
-        Insert: {
-          barbearia_id: string
-          created_at?: string
-          created_by?: string | null
-          email: string
-          expires_at: string
-          funcionario_data: Json
-          id?: string
-          token?: string | null
-          updated_at?: string
-          usado?: boolean
-        }
-        Update: {
-          barbearia_id?: string
-          created_at?: string
-          created_by?: string | null
-          email?: string
-          expires_at?: string
-          funcionario_data?: Json
-          id?: string
-          token?: string | null
-          updated_at?: string
-          usado?: boolean
-        }
-        Relationships: []
       }
       funcionario_pausas: {
         Row: {
@@ -759,6 +623,7 @@ export type Database = {
           receber_lembretes_email: boolean | null
           receber_lembretes_sms: boolean | null
           role: Database["public"]["Enums"]["user_role"]
+          senha_provisoria: boolean
           updated_at: string
           user_id: string
         }
@@ -772,6 +637,7 @@ export type Database = {
           receber_lembretes_email?: boolean | null
           receber_lembretes_sms?: boolean | null
           role?: Database["public"]["Enums"]["user_role"]
+          senha_provisoria?: boolean
           updated_at?: string
           user_id: string
         }
@@ -785,110 +651,11 @@ export type Database = {
           receber_lembretes_email?: boolean | null
           receber_lembretes_sms?: boolean | null
           role?: Database["public"]["Enums"]["user_role"]
+          senha_provisoria?: boolean
           updated_at?: string
           user_id?: string
         }
         Relationships: []
-      }
-      recompensas: {
-        Row: {
-          ativo: boolean
-          barbearia_id: string
-          created_at: string
-          descricao: string | null
-          id: string
-          nome: string
-          pontos_necessarios: number
-          updated_at: string
-        }
-        Insert: {
-          ativo?: boolean
-          barbearia_id: string
-          created_at?: string
-          descricao?: string | null
-          id?: string
-          nome: string
-          pontos_necessarios: number
-          updated_at?: string
-        }
-        Update: {
-          ativo?: boolean
-          barbearia_id?: string
-          created_at?: string
-          descricao?: string | null
-          id?: string
-          nome?: string
-          pontos_necessarios?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "recompensas_barbearia_id_fkey"
-            columns: ["barbearia_id"]
-            isOneToOne: false
-            referencedRelation: "barbearias"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "recompensas_barbearia_id_fkey"
-            columns: ["barbearia_id"]
-            isOneToOne: false
-            referencedRelation: "barbearias_public"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      resgates_recompensas: {
-        Row: {
-          barbearia_id: string
-          cliente_telefone: string
-          data_resgate: string
-          id: string
-          pontos_utilizados: number
-          recompensa_id: string
-          status: string
-        }
-        Insert: {
-          barbearia_id: string
-          cliente_telefone: string
-          data_resgate?: string
-          id?: string
-          pontos_utilizados: number
-          recompensa_id: string
-          status?: string
-        }
-        Update: {
-          barbearia_id?: string
-          cliente_telefone?: string
-          data_resgate?: string
-          id?: string
-          pontos_utilizados?: number
-          recompensa_id?: string
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "resgates_recompensas_barbearia_id_fkey"
-            columns: ["barbearia_id"]
-            isOneToOne: false
-            referencedRelation: "barbearias"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "resgates_recompensas_barbearia_id_fkey"
-            columns: ["barbearia_id"]
-            isOneToOne: false
-            referencedRelation: "barbearias_public"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "resgates_recompensas_recompensa_id_fkey"
-            columns: ["recompensa_id"]
-            isOneToOne: false
-            referencedRelation: "recompensas"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       servicos: {
         Row: {
@@ -1103,15 +870,6 @@ export type Database = {
       generate_slug: { Args: { "": string }; Returns: string }
       get_anonymous_appointment_limit: { Args: never; Returns: number }
       get_assinatura_ativa: { Args: { p_barbearia_id: string }; Returns: Json }
-      get_convite_por_token: {
-        Args: { p_token: string }
-        Returns: {
-          barbearia_id: string
-          email: string
-          expires_at: string
-          funcionario_data: Json
-        }[]
-      }
       get_current_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
@@ -1128,10 +886,6 @@ export type Database = {
           user_id: string
         }[]
       }
-      get_recompensas_disponiveis: {
-        Args: { p_barbearia_id: string; p_cliente_telefone: string }
-        Returns: Json
-      }
       get_user_barbearia_id:
         | { Args: never; Returns: string }
         | { Args: { user_uuid: string }; Returns: string }
@@ -1146,14 +900,6 @@ export type Database = {
           duracao_minutos: number
           funcionario_id: string | null
         }[]
-      }
-      resgatar_recompensa: {
-        Args: {
-          p_barbearia_id: string
-          p_cliente_telefone: string
-          p_recompensa_id: string
-        }
-        Returns: Json
       }
       user_can_access_barbearia: {
         Args: {

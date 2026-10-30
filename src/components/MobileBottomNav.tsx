@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Calendar, CalendarClock, Link as LinkIcon, Menu, Users, Scissors, Award, MessageSquare, Settings, LogOut, Clock, User, Home, CreditCard } from "lucide-react";
+import { LayoutDashboard, Calendar, CalendarClock, Link as LinkIcon, Menu, Users, Scissors, MessageSquare, Settings, LogOut, Clock, User, Home, CreditCard } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -29,11 +29,6 @@ const adminMenuItems = [
     title: "Férias",
     url: "/dashboard/ferias",
     icon: Calendar,
-  },
-  {
-    title: "Fidelidade",
-    url: "/dashboard/fidelidade",
-    icon: Award,
   },
   {
     title: "Feedbacks",

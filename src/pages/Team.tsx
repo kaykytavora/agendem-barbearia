@@ -37,29 +37,16 @@ interface Employee {
   email?: string | null;
   especialidade: string | null;
   nivel_permissao: 'funcionario' | 'gerente' | 'dono';
-  foto_url: string | null;
   user_id: string;
   barbearia_id: string;
 }
 
-interface PendingInvite {
-  id: string;
-  email: string;
-  funcionario_data: {
-    nome: string;
-    especialidade?: string;
-    nivel_permissao: string;
-    foto_url?: string;
-  };
-  expires_at: string;
-  created_at: string;
-}
+const SENHA_MINIMA = 8;
 
 export default function Team() {
   const { user, role, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
@@ -68,7 +55,7 @@ export default function Team() {
     email: "",
     especialidade: "",
     nivel_permissao: "funcionario" as 'funcionario' | 'gerente' | 'dono',
-    foto_url: ""
+    senha: ""
   });
 
   // Helper functions (moved up to be accessible)
@@ -121,7 +108,7 @@ export default function Team() {
   };
 
   const resetForm = () => {
-    setFormData({ nome: "", email: "", especialidade: "", nivel_permissao: "funcionario", foto_url: "" });
+    setFormData({ nome: "", email: "", especialidade: "", nivel_permissao: "funcionario", senha: "" });
     setEditingEmployee(null);
   };
 
@@ -152,20 +139,7 @@ export default function Team() {
         nivel_permissao: emp.nivel_permissao || emp.nivel,
       }));
 
-      // Buscar convites pendentes
-      const { data: invitesData, error: invitesError } = await supabase
-        .from('funcionario_convites')
-        .select('*')
-        .eq('barbearia_id', barbeariaId)
-        .eq('usado', false)
-        .gt('expires_at', new Date().toISOString());
-
-      if (invitesError) {
-        console.warn('Erro ao carregar convites pendentes:', invitesError);
-      }
-
       setEmployees(mappedEmployees as any);
-      setPendingInvites((invitesData || []) as any);
     } catch (error) {
       console.error('Erro ao carregar funcionários:', error);
       toast({
@@ -265,51 +239,39 @@ export default function Team() {
         });
       }
     } else {
-      // --- MODO CRIAÇÃO (CONVITE) ---
+      // --- MODO CRIAÇÃO ---
+      if (formData.senha.length < SENHA_MINIMA) {
+        toast({
+          title: "Senha inicial muito curta",
+          description: `Use pelo menos ${SENHA_MINIMA} caracteres.`,
+          variant: "destructive"
+        });
+        return;
+      }
+
       try {
-        const barbeariaId = (await supabase.rpc('get_user_barbearia_id', { user_uuid: user!.id })).data;
-
-        if (!barbeariaId) {
-          throw new Error("Usuário não associado a uma barbearia");
-        }
-
-        // Buscar nome da barbearia
-        const { data: barbeariaData } = await supabase
-          .from('barbearias')
-          .select('nome')
-          .eq('id', barbeariaId)
-          .maybeSingle();
-
-        const funcionarioData = {
-          nome: formData.nome,
-          especialidade: formData.especialidade,
-          nivel_permissao: uiToDbPermission(formData.nivel_permissao),
-          foto_url: formData.foto_url,
-        };
-
-        // Chamar edge function para enviar convite
-        const { data, error } = await supabase.functions.invoke('send-employee-invite', {
+        const { data, error } = await supabase.functions.invoke('create-employee-account', {
           body: {
             email: formData.email,
-            funcionarioData,
-            barbeariaId,
-            barbeariaName: barbeariaData?.nome || 'Barbearia'
+            password: formData.senha,
+            nome: formData.nome,
+            especialidade: formData.especialidade,
+            nivel_permissao: uiToDbPermission(formData.nivel_permissao),
           }
         });
 
         if (error) {
-          console.error('Erro ao invocar edge function:', error);
-          throw new Error(error.message || 'Falha ao enviar convite por email');
+          // Em respostas de erro, a mensagem da função vem no corpo da resposta
+          const corpo = await (error as { context?: Response }).context?.json?.().catch(() => null);
+          throw new Error(corpo?.error || 'Não foi possível cadastrar o funcionário');
         }
-
-        // Verificar se o response indica sucesso
-        if (!data || data.success !== true) {
-          throw new Error(data?.error || 'Falha ao processar convite');
+        if (!data?.success) {
+          throw new Error(data?.error || 'Não foi possível cadastrar o funcionário');
         }
 
         toast({
-          title: "✅ Convite enviado com sucesso!",
-          description: `📧 Convite enviado para ${formData.email}. O funcionário receberá um email para aceitar o convite e criar sua conta.`,
+          title: "Funcionário cadastrado",
+          description: `Passe o e-mail e a senha inicial para ${formData.nome}. No primeiro acesso será pedida uma senha nova.`,
         });
 
         setIsDialogOpen(false);
@@ -317,24 +279,10 @@ export default function Team() {
         loadEmployees();
 
       } catch (error: unknown) {
-        console.error('Erro ao enviar convite:', error);
-        let errorMessage = "Erro ao enviar convite";
-
-        if (error instanceof Error) {
-          if (error.message.includes("Permission denied") || error.message.includes("403")) {
-            errorMessage = "Você não tem permissão para enviar convites. Verifique se você é administrador.";
-          } else if (error.message.includes("Invalid email") || error.message.includes("email")) {
-            errorMessage = "Email inválido. Verifique o endereço de email e tente novamente.";
-          } else if (error.message.includes("RESEND_API_KEY") || error.message.includes("configuração")) {
-            errorMessage = "Erro de configuração do sistema. Entre em contato com o suporte técnico.";
-          } else {
-            errorMessage = error.message;
-          }
-        }
-
+        console.error('Erro ao cadastrar funcionário:', error);
         toast({
-          title: "❌ Erro ao enviar convite",
-          description: errorMessage,
+          title: "Erro ao cadastrar funcionário",
+          description: error instanceof Error ? error.message : "Tente novamente.",
           variant: "destructive"
         });
       }
@@ -348,34 +296,9 @@ export default function Team() {
       email: employee.email || "",
       especialidade: employee.especialidade || "",
       nivel_permissao: dbToUiPermission(employee.nivel_permissao),
-      foto_url: employee.foto_url || ""
+      senha: ""
     });
     setIsDialogOpen(true);
-  };
-
-  const handleCancelInvite = async (inviteId: string) => {
-    try {
-      const { error } = await supabase
-        .from('funcionario_convites')
-        .delete()
-        .eq('id', inviteId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Convite cancelado",
-        description: "O convite foi cancelado com sucesso.",
-      });
-
-      loadEmployees();
-    } catch (error: unknown) {
-      console.error('Erro ao cancelar convite:', error);
-      toast({
-        title: "Erro",
-        description: error instanceof Error ? error.message : "Erro ao cancelar convite",
-        variant: "destructive"
-      });
-    }
   };
 
   const handleDelete = async (employee: Employee) => {
@@ -466,7 +389,6 @@ export default function Team() {
           email: user.email,
           especialidade: "Dono / Gerente",
           nivel: 'dono', // Using 'dono' as per enum
-          foto_url: user.user_metadata.avatar_url
         });
 
       if (error) throw error;
@@ -541,16 +463,16 @@ export default function Team() {
               <DialogTrigger asChild>
                 <Button className="w-full sm:w-auto">
                   <Plus className="w-4 h-4 mr-2" />
-                  {editingEmployee ? "Editar Funcionário" : "Convidar Funcionário"}
+                  {editingEmployee ? "Editar Funcionário" : "Adicionar Funcionário"}
                 </Button>
               </DialogTrigger>
               <DialogContent className="w-[95vw] max-w-md mx-auto">
                 <DialogHeader>
                   <DialogTitle className="text-lg sm:text-xl">
-                    {editingEmployee ? "Editar Funcionário" : "Convidar Novo Funcionário"}
+                    {editingEmployee ? "Editar Funcionário" : "Adicionar Funcionário"}
                   </DialogTitle>
                   <DialogDescription className="text-sm sm:text-base">
-                    {editingEmployee ? "Edite as informações do funcionário" : "Envie um convite por email para adicionar um novo funcionário à equipe"}
+                    {editingEmployee ? "Edite as informações do funcionário" : "Defina uma senha inicial. O funcionário cria a própria senha no primeiro acesso."}
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
@@ -578,6 +500,23 @@ export default function Team() {
                       required
                     />
                   </div>
+
+                  {!editingEmployee && (
+                    <div>
+                      <Label htmlFor="senha" className="text-sm sm:text-base">Senha inicial *</Label>
+                      <Input
+                        id="senha"
+                        type="text"
+                        autoComplete="off"
+                        value={formData.senha}
+                        onChange={(e) => setFormData(prev => ({ ...prev, senha: e.target.value }))}
+                        placeholder={`Mínimo de ${SENHA_MINIMA} caracteres`}
+                        minLength={SENHA_MINIMA}
+                        className="text-sm sm:text-base"
+                        required
+                      />
+                    </div>
+                  )}
 
                   <div>
                     <Label htmlFor="especialidade" className="text-sm sm:text-base">Especialidade</Label>
@@ -623,23 +562,12 @@ export default function Team() {
                     </AnimatePresence>
                   </div>
 
-                  <div>
-                    <Label htmlFor="foto_url" className="text-sm sm:text-base">URL da foto (opcional)</Label>
-                    <Input
-                      id="foto_url"
-                      value={formData.foto_url}
-                      onChange={(e) => setFormData(prev => ({ ...prev, foto_url: e.target.value }))}
-                      placeholder="https://..."
-                      className="text-sm sm:text-base"
-                    />
-                  </div>
-
                   <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
                     <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto text-sm sm:text-base">
                       Cancelar
                     </Button>
                     <Button type="submit" className="w-full sm:w-auto text-sm sm:text-base">
-                      {editingEmployee ? "Atualizar" : "Enviar Convite"}
+                      {editingEmployee ? "Atualizar" : "Cadastrar Funcionário"}
                     </Button>
                   </DialogFooter>
                 </form>
@@ -647,58 +575,6 @@ export default function Team() {
             </Dialog>
           </div>
         </div>
-
-        {/* Convites Pendentes */}
-        {pendingInvites.length > 0 && (
-          <div className="mb-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <Info className="w-5 h-5 text-amber-500" />
-              Convites Pendentes ({pendingInvites.length})
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {pendingInvites.map((invite) => (
-                <Card key={invite.id} className="border-orange-200/60 dark:border-orange-800/50 bg-gradient-to-br from-orange-50/80 to-amber-50/60 dark:from-orange-900/20 dark:to-amber-900/10 backdrop-blur-sm">
-                  <CardHeader className="flex-row items-start justify-between space-y-0 p-4 sm:p-6">
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-800 dark:to-amber-800 rounded-full flex items-center justify-center border border-orange-200/50 dark:border-orange-700/50">
-                        <User className="w-4 h-4 sm:w-5 sm:h-5 text-orange-700 dark:text-orange-300" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-base sm:text-lg text-gray-900 dark:text-gray-100">{invite.funcionario_data.nome}</CardTitle>
-                        <Badge variant="secondary" className="bg-orange-100 text-orange-800 dark:bg-orange-800/80 dark:text-orange-200 text-xs border border-orange-200/50 dark:border-orange-700/50">
-                          ⏳ Pendente
-                        </Badge>
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 sm:h-8 sm:w-8 text-destructive hover:text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20"
-                      onClick={() => handleCancelInvite(invite.id)}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </CardHeader>
-                  <CardContent className="p-4 sm:p-6 pt-0">
-                    <div className="space-y-1 sm:space-y-2">
-                      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                        <span className="text-blue-500">📧</span> {invite.email}
-                      </p>
-                      {invite.funcionario_data.especialidade && (
-                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                          <span className="text-purple-500">🎯</span> {invite.funcionario_data.especialidade}
-                        </p>
-                      )}
-                      <p className="text-xs sm:text-sm text-orange-600 dark:text-orange-400 flex items-center gap-1 font-medium">
-                        <span className="text-red-500">⏰</span> Expira em {new Date(invite.expires_at).toLocaleDateString('pt-BR')}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Funcionários Ativos */}
         <div className="mb-6">
@@ -712,15 +588,7 @@ export default function Team() {
                 <CardHeader className="flex-row items-start justify-between space-y-0 p-4 sm:p-6">
                   <div className="flex items-center gap-2 sm:gap-3">
                     <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-full flex items-center justify-center overflow-hidden">
-                      {employee.foto_url ? (
-                        <img
-                          src={employee.foto_url}
-                          alt={employee.nome}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <User className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                      )}
+                      <User className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                     </div>
                     <div>
                       <CardTitle className="text-base sm:text-lg">{employee.nome}</CardTitle>

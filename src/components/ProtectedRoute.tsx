@@ -3,6 +3,7 @@ import { Navigate } from "react-router-dom";
 import { WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import PageLoader from "./PageLoader";
+import TrocarSenhaProvisoria from "./TrocarSenhaProvisoria";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -10,7 +11,7 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { user, role, loading, profileError } = useAuth(); // 'loading' espera pelo perfil
+  const { user, profile, role, loading, profileError } = useAuth(); // 'loading' espera pelo perfil
 
   if (loading) {
     return <PageLoader />;
@@ -32,6 +33,11 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
         <Button onClick={() => window.location.reload()}>Tentar novamente</Button>
       </div>
     );
+  }
+
+  // Funcionário ainda com a senha definida pelo dono: nada é liberado antes da troca.
+  if (profile?.senha_provisoria) {
+    return <TrocarSenhaProvisoria />;
   }
 
   // Se uma role específica é necessária, verifique-a.

@@ -39,34 +39,12 @@ export const createAppointment = async (
   const bookingToken = generateBookingToken();
   const bookingTokenHash = await generateSHA256Hash(bookingToken);
 
-  // Se há dados de telefone, criar/encontrar customer usando Edge Function
-  if (appointmentData.cliente_telefone) {
-    try {
-      const { data: customerData, error: customerError } = await supabase.functions.invoke('find-or-create-customer', {
-        body: {
-          phone_raw: appointmentData.cliente_telefone,
-          name: appointmentData.cliente_nome || 'Cliente',
-          otp_verified: false // OTP está desativado temporariamente
-        }
-      });
-
-      if (customerError) {
-        console.error('Erro ao criar/encontrar customer:', customerError);
-        throw new Error(`Erro ao processar dados do cliente: ${customerError.message}`);
-      } else if (customerData?.customer_id) {
-        // customerId is used by find-or-create-customer edge function
-      }
-    } catch (error) {
-      console.error('Erro na Edge Function find-or-create-customer:', error);
-      throw error; // Propaga o erro para não criar agendamento sem customer_id
-    }
-  }
-
   // Determinar o user_id final
   const finalUserId = appointmentData.user_id !== undefined ? appointmentData.user_id : (session?.user?.id ?? null);
 
   // Construir payload base
   const newAppointment: any = {
+    id: crypto.randomUUID(), // Visitantes não podem ler a linha criada, então o id nasce aqui
     barbearia_id: appointmentData.barbearia_id,
     servico_id: appointmentData.servico_id,
     funcionario_id: appointmentData.funcionario_id,
@@ -86,22 +64,25 @@ export const createAppointment = async (
 
 
   // Inserir o agendamento no banco de dados
-  const { data, error } = await supabase
-    .from('agendamentos')
-    .insert(newAppointment)
-    .select('id, barbearia_id, status')
-    .single();
+  const { error } = await supabase.from('agendamentos').insert(newAppointment);
 
   if (error) {
     console.error('Erro ao criar agendamento:', error);
+    if (error.message.includes('HORARIO_OCUPADO')) {
+      throw new Error('Esse horário já está reservado para este profissional. Escolha outro.');
+    }
     throw new Error(`Não foi possível criar o agendamento: ${error.message}`);
+  }
+
+  if (!session) {
+    return { ...newAppointment, booking_token: bookingToken };
   }
 
   // Buscar dados completos do agendamento para retorno
   const { data: fullData, error: selectError } = await supabase
     .from('agendamentos')
     .select('*')
-    .eq('id', data.id)
+    .eq('id', newAppointment.id)
     .single();
 
   if (selectError) {

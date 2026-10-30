@@ -39,17 +39,13 @@ const Settings = lazy(() => import("./pages/Settings"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Feedbacks = lazy(() => import("./pages/Feedbacks"));
-const Fidelidade = lazy(() => import("./pages/Fidelidade"));
 const ShareProfile = lazy(() => import("./pages/ShareProfile"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Unauthorized = lazy(() => import("./pages/Unauthorized"));
-const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
 const ClientSettings = lazy(() => import("./pages/ClientSettings"));
 const Subscription = lazy(() => import("./pages/Subscription"));
 const PersonalSettings = lazy(() => import("./pages/PersonalSettings"));
 const MyAppointments = lazy(() => import("./pages/MyAppointments"));
-const MyRewards = lazy(() => import("./pages/MyRewards"));
-const FidelidadeConfiguracoes = lazy(() => import("./pages/FidelidadeConfiguracoes"));
 const Ferias = lazy(() => import("./pages/Ferias"));
 const Agenda = lazy(() => import("./pages/Agenda"));
 
@@ -109,14 +105,6 @@ const App = () => (
 								element={
 									<ProtectedRoute requiredRole="cliente">
 										<MyAppointments />
-									</ProtectedRoute>
-								}
-							/>
-							<Route
-								path="/minhas-recompensas"
-								element={
-									<ProtectedRoute requiredRole="cliente">
-										<MyRewards />
 									</ProtectedRoute>
 								}
 							/>
@@ -211,22 +199,6 @@ const App = () => (
 									}
 								/>
 								<Route
-									path="/dashboard/fidelidade"
-									element={
-										<ProtectedRoute requiredRole="funcionario">
-											<Fidelidade />
-										</ProtectedRoute>
-									}
-								/>
-								<Route
-									path="/dashboard/fidelidade-configuracoes"
-									element={
-										<ProtectedRoute requiredRole="admin">
-											<FidelidadeConfiguracoes />
-										</ProtectedRoute>
-									}
-								/>
-								<Route
 									path="/dashboard/share-profile"
 									element={
 										<ProtectedRoute requiredRole="admin">
@@ -259,7 +231,6 @@ const App = () => (
 									}
 								/>
 								<Route path="/unauthorized" element={<Unauthorized />} />
-								<Route path="/accept-invite" element={<AcceptInvite />} />
 								{/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
 								<Route path="*" element={<NotFound />} />
 							</Routes>

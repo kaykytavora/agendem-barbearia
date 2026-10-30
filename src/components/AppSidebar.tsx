@@ -9,7 +9,6 @@ import {
   Settings,
   LogOut,
   Home,
-  Award,
   User,
   Link as LinkIcon,
   CreditCard,
@@ -74,11 +73,6 @@ const adminMenuItems = [
     title: "Férias & Recessos",
     url: "/dashboard/ferias",
     icon: Calendar,
-  },
-  {
-    title: "Fidelidade",
-    url: "/dashboard/fidelidade",
-    icon: Award,
   },
   {
     title: "Feedbacks",

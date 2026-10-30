@@ -11,7 +11,7 @@ export function Hero() {
   const features = [
     { icon: Calendar, title: "Agendamento Online", description: "Agenda online 24h com horários livres em tempo real" },
     { icon: Users, title: "Gestão de Clientes", description: "Perfil completo com histórico e preferências" },
-    { icon: Star, title: "Programa Fidelidade", description: "Cartão digital automático para seus clientes" },
+    { icon: Star, title: "Avaliações", description: "Feedback dos clientes depois de cada atendimento" },
   ];
 
   const benefits = [
@@ -43,7 +43,7 @@ export function Hero() {
             </h1>
             
             <p className={`${isMobile ? 'text-lg' : isTablet ? 'text-xl' : 'text-xl md:text-2xl'} text-muted-foreground max-w-3xl mx-auto mb-8 leading-relaxed`}>
-              Agendamento online, gestão da equipe e programa de fidelidade para barbearias e salões de beleza.
+              Agendamento online, gestão da equipe e avaliações para barbearias e salões de beleza.
               {!isMobile && (
                 <span className="text-foreground font-medium"> Tudo em um só lugar, direto do navegador.</span>
               )}
