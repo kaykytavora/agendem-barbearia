@@ -19,7 +19,7 @@ import {
 	Clock3,
 	Download,
 } from "lucide-react";
-import { generatePDFReceipt } from "@/components/PDFGenerator";
+import { generatePDFReceipt } from "@/lib/receipt";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -134,7 +134,7 @@ export default function MyAppointments() {
 
 	if (isLoading) {
 		return (
-			<div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 p-4">
+			<div className="min-h-screen bg-background p-4">
 				<div className="max-w-4xl mx-auto space-y-6">
 					{/* Header */}
 					<div className="flex items-center gap-4">
@@ -167,7 +167,7 @@ export default function MyAppointments() {
 	}
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 p-4">
+		<div className="min-h-screen bg-background p-4">
 			<div className="max-w-4xl mx-auto space-y-6">
 				{/* Header */}
 				<div className="flex items-center gap-4">

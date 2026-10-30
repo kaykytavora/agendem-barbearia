@@ -7,6 +7,8 @@ import { Bell } from 'lucide-react';
 import { useToast } from '../ui/use-toast';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 
 // Definição do tipo para uma notificação
 interface Notification {
@@ -50,50 +52,46 @@ export function Notifications() {
     fetchBarbeariaId();
   }, [user]);
 
-  useEffect(() => {
-    if (!barbeariaId) return;
+  // Mesma chave de cache da aba Configurações > Avisos: ligar/desligar o som lá vale aqui na hora
+  const { data: notificationSettings } = useQuery({
+    queryKey: ['notification-settings', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('barbearias')
+        .select('notificacoes_ativa')
+        .eq('id', barbeariaId!)
+        .maybeSingle();
+      return { notificacoes_ativa: data?.notificacoes_ativa ?? true };
+    },
+    enabled: !!barbeariaId,
+  });
+  const somAtivo = notificationSettings?.notificacoes_ativa ?? true;
 
-    // Busca notificações iniciais (não implementado ainda, apenas placeholder)
-    // fetchInitialNotifications(); 
+  // Cada página monta o próprio DashboardLayout, então este sino é desmontado a cada navegação.
+  // O atraso do hook evita abrir (e logo fechar) o WebSocket quando a pessoa só está passando pela tela.
+  useRealtimeSubscription({
+    channelName: 'agendamentos-notifications',
+    table: 'agendamentos',
+    event: 'INSERT',
+    filter: barbeariaId ? `barbearia_id=eq.${barbeariaId}` : undefined,
+    enabled: !!barbeariaId,
+    onUpdate: (payload) => {
+      const newAppointment = payload.new as Record<string, unknown> & { id: string; cliente_nome?: string };
+      const newNotification: Notification = {
+        id: newAppointment.id,
+        message: `Novo agendamento de ${newAppointment.cliente_nome || 'um cliente'}`,
+        read: false,
+        data: newAppointment,
+      };
 
-    const channel = supabase.channel('agendamentos-notifications');
-
-    channel
-      .on(
-        'postgres_changes',
-        { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'agendamentos',
-          filter: `barbearia_id=eq.${barbeariaId}`
-        },
-        (payload) => {
-          const newAppointment = payload.new;
-          const newNotification: Notification = {
-            id: newAppointment.id,
-            message: `Novo agendamento de ${newAppointment.cliente_nome || 'um cliente'}`,
-            read: false,
-            data: newAppointment,
-          };
-
-          setNotifications(prev => [newNotification, ...prev]);
-          
-          // Toca o som de notificação
-          audioRef.current?.play().catch(e => console.error("Erro ao tocar som:", e));
-
-          // Exibe um toast
-          toast({
-            title: "Nova Notificação",
-            description: newNotification.message,
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [toast, barbeariaId]);
+      setNotifications(prev => [newNotification, ...prev]);
+      if (somAtivo) audioRef.current?.play().catch(e => console.error("Erro ao tocar som:", e));
+      toast({
+        title: "Nova Notificação",
+        description: newNotification.message,
+      });
+    },
+  });
 
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);

@@ -115,6 +115,25 @@ describe('ProtectedRoute', () => {
     expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
   });
 
+  it('should show retry screen instead of redirecting when the profile failed to load', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: '123', email: 'test@test.com' },
+      role: null,
+      loading: false,
+      profileError: true
+    });
+
+    renderWithRouter(
+      <ProtectedRoute requiredRole="admin">
+        <TestComponent />
+      </ProtectedRoute>
+    );
+
+    expect(screen.getByText('Não foi possível carregar sua conta')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tentar novamente' })).toBeInTheDocument();
+    expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
+  });
+
   it('should allow admin to access funcionario routes', () => {
     mockUseAuth.mockReturnValue({
       user: { id: '123', email: 'test@test.com' },

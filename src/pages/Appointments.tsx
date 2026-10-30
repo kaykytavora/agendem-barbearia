@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { FEATURES } from "@/config/features";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -495,8 +496,8 @@ export default function Appointments() {
 														</div>
 														<div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
 															{/* SISTEMA DE CONFIRMAÇÃO PAUSADO - Agendamentos já são criados como 'confirmado'
-															    Para reativar: mudar status inicial para 'pendente' em api.ts e descomentar este bloco */}
-															{false && appointment.status === "pendente" && (
+															    Para reativar: mudar status inicial para 'pendente' em api.ts e ativar FEATURES.confirmacaoAgendamento */}
+															{FEATURES.confirmacaoAgendamento && appointment.status === "pendente" && (
 																<>
 																	<AlertDialog>
 																		<AlertDialogTrigger asChild>

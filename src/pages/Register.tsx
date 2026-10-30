@@ -29,7 +29,7 @@ export default function Register() {
 		confirmPassword: "",
 	});
 
-	const { signUp, user, role, loading: authLoading } = useAuth();
+	const { signUp, user, loading: authLoading } = useAuth();
 	const navigate = useNavigate();
 	const { toast } = useToast();
 	const passwordStrength = usePasswordStrength(formData.password);
@@ -37,14 +37,9 @@ export default function Register() {
 	// Redireciona se já estiver logado (após o carregamento)
 	useEffect(() => {
 		if (!authLoading && user) {
-			// Redirecionar para client-panel se for cliente, caso contrário dashboard
-			if (role === 'cliente') {
-				navigate("/client-panel");
-			} else {
-				navigate("/dashboard");
-			}
+			navigate("/dashboard");
 		}
-	}, [user, authLoading, role, navigate]);
+	}, [user, authLoading, navigate]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -171,7 +166,7 @@ export default function Register() {
   }
 
 	return (
-		<div className="min-h-screen w-full bg-gradient-to-br from-background to-blue-950/20 flex flex-col items-center justify-center p-4 pt-20 relative">
+		<div className="min-h-screen w-full bg-background flex flex-col items-center justify-center p-4 pt-20 relative">
 			<Link
 				to="/"
 				className="fixed top-6 left-6 inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors z-20"

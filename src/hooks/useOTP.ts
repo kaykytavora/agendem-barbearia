@@ -70,7 +70,9 @@ export const useOTP = (): UseOTPReturn => {
       // Por enquanto, vamos apenas gerar um código e mostrar no console
       const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
       
-      console.log(`[SIMULAÇÃO OTP] Código para ${phoneE164}: ${otpCode}`);
+      if (import.meta.env.DEV) {
+        console.info(`[SIMULAÇÃO OTP] Código para ${phoneE164}: ${otpCode}`);
+      }
       
       // Armazenar temporariamente no localStorage para simulação
       localStorage.setItem(`otp_${phoneE164}`, otpCode);

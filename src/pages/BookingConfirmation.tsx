@@ -3,9 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useResponsive } from "@/hooks/use-mobile";
 import { useRef } from "react";
-import html2canvas from "html2canvas";
 import { useAuth } from "@/contexts/AuthContext";
-import { generatePDFReceipt } from "@/components/PDFGenerator";
+import { generatePDFReceipt } from "@/lib/receipt";
 import { 
   CheckCircle, 
   Calendar, 
@@ -36,7 +35,6 @@ const BookingConfirmation = () => {
 
   const downloadConfirmation = async () => {
     try {
-      console.log('Dados do booking para PDF:', bookingData);
 
       // Converter dados do booking para formato esperado pelo PDFGenerator
       const appointmentData = {
@@ -62,7 +60,6 @@ const BookingConfirmation = () => {
         }
       };
 
-      console.log('Dados formatados para PDF:', appointmentData);
       await generatePDFReceipt(appointmentData);
     } catch (error) {
       console.error('Erro ao gerar comprovante PDF:', error);
@@ -74,6 +71,7 @@ const BookingConfirmation = () => {
   const fallbackDownload = async () => {
     if (confirmationRef.current) {
       try {
+        const { default: html2canvas } = await import("html2canvas");
         const canvas = await html2canvas(confirmationRef.current, {
           backgroundColor: '#0a0a0a',
           scale: 2,

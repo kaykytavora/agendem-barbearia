@@ -20,8 +20,6 @@ import {
   AlertCircle
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { Database } from "@/integrations/supabase/types";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -40,18 +38,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useGeolocation } from "@/hooks/useGeolocation";
-
-interface FeedbackData {
-  rating: number;
-}
-
-type Barbershop = Database['public']['Tables']['barbearias']['Row'] & {
-  servicos: { categoria_id: string | null; categoria_id_2?: string | null }[], // IDs das categorias para filtro
-  slug: string;
-  rating?: number;
-};
-
-type Category = Pick<Database['public']['Tables']['categorias_servicos']['Row'], 'id' | 'nome'>;
+import { resumirHorarios } from "@/lib/horarios";
+import { useBarbershopsList } from "@/hooks/useBarbershopsList";
 
 const BarberShops = () => {
   const navigate = useNavigate();
@@ -59,10 +47,10 @@ const BarberShops = () => {
   const { role, loading: roleLoading } = useUserRole();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCity, setSelectedCity] = useState("all");
-  const [allBarberShops, setAllBarberShops] = useState<Barbershop[]>([]);
-  const [cities, setCities] = useState<string[]>([]);
-  const [allCategories, setAllCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: lista, isLoading: loading, isError: loadError, refetch } = useBarbershopsList();
+  const allBarberShops = lista?.barbearias ?? [];
+  const cities = lista?.cidades ?? [];
+  const allCategories = lista?.categorias ?? [];
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState("name_asc");
   const [locationFilter, setLocationFilter] = useState<"all" | "nearby">("all");
@@ -106,84 +94,6 @@ const BarberShops = () => {
     }
   }, [detectedCity]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const { data: barbershopsData, error: barbershopsError } = await supabase
-          .from('barbearias')
-          .select(`
-            *,
-            servicos ( categoria_id, categoria_id_2 )
-          `);
-
-        if (barbershopsError) {
-          console.error("Erro ao buscar barbearias:", barbershopsError);
-          throw barbershopsError;
-        }
-
-        const { data: categoriesData, error: categoriesError } = await supabase
-          .from('categorias_servicos')
-          .select('id, nome')
-          .order('nome');
-        
-        if (categoriesError) {
-          console.error("Erro ao buscar categorias:", categoriesError);
-          throw categoriesError;
-        }
-
-        // Buscar avaliações das barbearias
-        if (barbershopsData) {
-          const barbershopsWithRatings = await Promise.all(
-            barbershopsData.map(async (barbershop) => {
-              try {
-                // Buscar feedbacks diretamente da tabela usando rating
-                const { data: feedbacksData, error: feedbacksError } = await supabase
-                  .from('feedbacks')
-                  .select('rating')
-                  .eq('barbearia_id', barbershop.id)
-                  .eq('status', 'concluido') // Apenas feedbacks concluídos
-                  .not('rating', 'is', null) as { data: FeedbackData[] | null; error: unknown };
-
-                if (feedbacksError) {
-                  console.error("Erro ao buscar feedbacks:", feedbacksError);
-                  return { ...barbershop, rating: 0 };
-                }
-
-                // Calcular média
-                if (feedbacksData && feedbacksData.length > 0) {
-                  const total = feedbacksData.reduce((sum, feedback) => sum + (feedback.rating || 0), 0);
-                  const average = total / feedbacksData.length;
-                  return { ...barbershop, rating: Math.round(average * 10) / 10 };
-                }
-
-                return { ...barbershop, rating: 0 };
-              } catch (error) {
-                console.error("Erro ao processar barbearia:", error);
-                return { ...barbershop, rating: 0 };
-              }
-            })
-          );
-
-          setAllBarberShops(barbershopsWithRatings as unknown as Barbershop[]); 
-          // Extrair cidades únicas
-          const uniqueCities = ["all", ...new Set(barbershopsData.map(shop => shop.cidade).filter(Boolean) as string[])];
-          setCities(uniqueCities);
-        }
-
-        if (categoriesData) {
-          setAllCategories(categoriesData);
-        }
-
-      } catch (err) {
-        // Tratar erro (ex: mostrar toast)
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
 
 
   const filteredShops = allBarberShops
@@ -247,7 +157,7 @@ const BarberShops = () => {
       <div className="border-b border-border/50 bg-card/30 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
               <Button
                 variant="ghost"
                 size="icon"
@@ -263,14 +173,16 @@ const BarberShops = () => {
               >
                 <ArrowLeft className="w-4 h-4" />
               </Button>
-              <div>
-                <h1 className="text-2xl font-bold">Barbearias Disponíveis</h1>
-                <p className="text-muted-foreground">
+              <div className="min-w-0">
+                <h1 className="text-lg sm:text-2xl font-bold truncate">
+                  Barbearias<span className="hidden sm:inline"> Disponíveis</span>
+                </h1>
+                <p className="hidden sm:block text-muted-foreground">
                   Encontre a barbearia ideal para você
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 shrink-0">
               <ThemeToggle />
               {user ? (
                 <DropdownMenu>
@@ -574,12 +486,14 @@ const BarberShops = () => {
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <Clock className="w-4 h-4" />
-                    08:00 - 20:00
+                    {resumirHorarios(shop.horarios_funcionamento)?.horas ?? "Horário não informado"}
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Phone className="w-4 h-4" />
-                    {shop.telefone}
-                  </div>
+                  {shop.telefone && (
+                    <div className="flex items-center gap-1">
+                      <Phone className="w-4 h-4" />
+                      {shop.telefone}
+                    </div>
+                  )}
                 </div>
               </CardHeader>
               
@@ -593,7 +507,6 @@ const BarberShops = () => {
                     variant="premium" 
                     className="flex-1"
                     onClick={() => {
-                      console.log('[NAVIGATION] Navegando para:', shop.slug, 'barbershop:', shop.nome);
                       if (!shop.slug) {
                         console.error('[NAVIGATION ERROR] Slug is null/undefined for:', shop.nome);
                         return;
@@ -617,7 +530,6 @@ const BarberShops = () => {
               key={shop.id} 
               className="border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-brand-md transition-all duration-300 overflow-hidden cursor-pointer"
               onClick={() => {
-                console.log('[NAVIGATION MOBILE] Navegando para:', shop.slug, 'barbershop:', shop.nome);
                 if (!shop.slug) {
                   console.error('[NAVIGATION ERROR] Slug is null/undefined for:', shop.nome);
                   return;
@@ -654,7 +566,7 @@ const BarberShops = () => {
                   <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
                     <div className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      <span>08:00 - 20:00</span>
+                      <span>{resumirHorarios(shop.horarios_funcionamento)?.horas ?? "Horário não informado"}</span>
                     </div>
                     {shop.telefone && (
                       <div className="flex items-center gap-1">
@@ -673,7 +585,14 @@ const BarberShops = () => {
           ))}
          </div>
 
-        {filteredShops.length === 0 && (
+        {loadError ? (
+          <div className="flex flex-col items-center gap-3 text-center py-12">
+            <p className="text-muted-foreground">Não foi possível carregar as barbearias.</p>
+            <Button variant="outline" onClick={() => refetch()}>
+              Tentar novamente
+            </Button>
+          </div>
+        ) : filteredShops.length === 0 && (
           <div className="text-center py-12">
             <p className="text-muted-foreground">Nenhuma barbearia encontrada com os filtros selecionados.</p>
           </div>

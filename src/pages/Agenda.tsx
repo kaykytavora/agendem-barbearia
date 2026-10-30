@@ -203,9 +203,6 @@ export default function Agenda() {
                   days={agenda}
                   viewMode={effectiveViewMode}
                   selectedDayIndex={selectedDayIndex}
-                  onSlotClick={(slot) => {
-                    console.log('Slot clicked:', slot);
-                  }}
                 />
               )}
             </div>

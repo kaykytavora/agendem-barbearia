@@ -3,8 +3,17 @@ import { HelmetProvider } from 'react-helmet-async'
 import App from './App.tsx'
 import './index.css'
 
-// Registrar Service Worker para PWA
-if ('serviceWorker' in navigator) {
+// Em desenvolvimento o service worker serviria módulos antigos do cache (os arquivos do
+// Vite dev não têm hash no nome), então removemos qualquer registro e limpamos o cache.
+if ('serviceWorker' in navigator && import.meta.env.DEV) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    registrations.forEach((registration) => registration.unregister());
+  });
+  caches?.keys().then((keys) => keys.forEach((key) => caches.delete(key)));
+}
+
+// Registrar Service Worker para PWA (somente no build de produção)
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then((registration) => {
@@ -15,7 +24,6 @@ if ('serviceWorker' in navigator) {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                 // Nova versão disponível - notificação mais suave
-                console.log('Nova versão da aplicação disponível');
 
                 // Criar notificação discreta em vez de popup invasivo
                 const updateBanner = document.createElement('div');

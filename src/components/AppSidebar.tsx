@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import {
-  BarChart3,
+  LayoutDashboard,
   Calendar,
   CalendarClock,
   Users,
@@ -46,9 +46,9 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const adminMenuItems = [
   {
-    title: "Dashboard",
+    title: "Início",
     url: "/dashboard",
-    icon: BarChart3,
+    icon: LayoutDashboard,
   },
   {
     title: "Minha Agenda",
@@ -93,6 +93,11 @@ const adminMenuItems = [
 ];
 
 const funcionarioMenuItems = [
+  {
+    title: "Início",
+    url: "/dashboard",
+    icon: LayoutDashboard,
+  },
   {
     title: "Minha Agenda",
     url: "/dashboard/agenda",
@@ -237,6 +242,7 @@ export function AppSidebar() {
                         <SidebarMenuButton asChild className="w-full">
                           <NavLink
                             to={item.url}
+                            end
                             className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md transition-all ${getNavCls({ isActive })}`}
                             onClick={handleItemClick} // Close sidebar on mobile
                             aria-label={item.title}

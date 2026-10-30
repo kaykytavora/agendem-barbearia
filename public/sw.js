@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fiden-agency-v1.0.0';
+const CACHE_NAME = 'agendem-v2.0.0';
 const OFFLINE_URL = '/offline.html';
 const CACHE_EXPIRY_TIME = 7 * 24 * 60 * 60 * 1000; // 7 days
 

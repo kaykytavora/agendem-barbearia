@@ -1,54 +1,150 @@
-# Database Scripts
+# Banco de dados do Agendem
 
-## 📁 Estrutura
+Tudo o que existe no banco está nesta pasta, em SQL comentado. O projeto Supabase é o
+`frwijltveksvxnyakuze`, e o app se conecta a ele pelas variáveis do arquivo `.env`.
 
+## Como a pasta está organizada
+
+Os arquivos de `migrations/` rodam em ordem, uma única vez, em um banco vazio.
+
+| Arquivo | Conteúdo |
+| --- | --- |
+| `001_tipos_e_tabelas.sql` | Tipos, tabelas, relacionamentos e índices |
+| `002_funcoes.sql` | Regras de negócio e validações |
+| `003_gatilhos_e_views.sql` | Ações automáticas e views públicas |
+| `004_seguranca_rls.sql` | Quem pode acessar o quê |
+| `005_storage_realtime_e_dados.sql` | Imagens, tempo real e categorias iniciais |
+
+Para mudar o banco, crie um arquivo novo (`006_...sql`) em vez de editar um já aplicado.
+
+## Visão geral
+
+```mermaid
+flowchart LR
+    App["App React"] -->|"chave anon + login"| API["API do Supabase"]
+    App -->|"ações sensíveis"| Edge["Edge Functions"]
+    API --> RLS{"Regras de RLS"}
+    RLS -->|"permitido"| DB[("Postgres")]
+    RLS -->|"bloqueado"| Vazio["Erro ou lista vazia"]
+    Edge -->|"service_role"| DB
+    DB --> RT["Realtime"]
+    RT -->|"novos agendamentos"| App
 ```
-database/
-├── policies/           # Políticas RLS ativas
-│   └── profiles_rls_active.sql
-└── README.md          # Este arquivo
+
+A chave `anon` fica no navegador e é pública por natureza: quem protege os dados é o RLS.
+A chave `service_role` ignora o RLS e deve existir só nas Edge Functions.
+
+## Papéis
+
+| Papel | Quem é | O que faz |
+| --- | --- | --- |
+| Visitante (`anon`) | Sem login | Vê a vitrine e agenda sem conta |
+| `cliente` | Conta de cliente | Agenda, acompanha, avalia e resgata pontos |
+| `funcionario` | Equipe | Gerencia agenda, pausas, pontos e avaliações |
+| `admin` | Dono da barbearia | Tudo acima, mais equipe, serviços, horários e configurações |
+
+Dentro da equipe, a coluna `funcionarios.nivel` (`funcionario`, `gerente`, `dono`) guarda
+o cargo. O papel que vale para a segurança é sempre `profiles.role`.
+
+## Cadastro
+
+A função `handle_new_user` roda sozinha quando o Supabase cria um login.
+
+```mermaid
+flowchart TD
+    A["Novo login em auth.users"] --> B{"role informado"}
+    B -->|"funcionario"| C{"Convite válido para o e-mail?"}
+    C -->|"sim"| D["Cria perfil e funcionário<br/>Marca convite como usado"]
+    C -->|"não"| G["Cria perfil de cliente"]
+    B -->|"admin"| E["Cria perfil de admin"]
+    E --> F{"Informou nome da barbearia?"}
+    F -->|"sim"| H["Cria barbearia, dono na equipe<br/>e horários padrão"]
+    F -->|"não"| I["Fim"]
+    B -->|"outro"| G
 ```
 
-## 🚀 Como Usar
+## Agendamento
 
-### Aplicar Políticas RLS dos Profiles
-Execute o arquivo completo no Supabase SQL Editor:
-```sql
--- Execute todo o conteúdo de:
-database/policies/profiles_rls_active.sql
+A função `validar_agendamento` roda antes de gravar qualquer agendamento.
+
+```mermaid
+flowchart TD
+    A["Dados do agendamento"] --> B["Limpa telefone, e-mail e nome"]
+    B --> C{"Dados válidos?"}
+    C -->|"não"| X["Erro"]
+    C -->|"sim"| D{"Serviço e profissional<br/>são da barbearia?"}
+    D -->|"não"| X
+    D -->|"sim"| E{"Data no passado?"}
+    E -->|"sim"| X
+    E -->|"não"| F{"Profissional de férias?"}
+    F -->|"sim"| X
+    F -->|"não"| G{"Sem conta e com 3<br/>agendamentos ativos?"}
+    G -->|"sim"| X
+    G -->|"não"| H["Grava"]
 ```
 
-## ✅ Status das Políticas
+Depois de gravado, o agendamento segue este ciclo:
 
-- **profiles_rls_active.sql** - ✅ FUNCIONANDO
-- **Testado em:** 2025-09-25
-- **Erro 500:** ❌ Resolvido
+```mermaid
+stateDiagram-v2
+    [*] --> pendente
+    [*] --> confirmado
+    pendente --> confirmado
+    pendente --> cancelado
+    confirmado --> cancelado
+    confirmado --> finalizado
+    finalizado --> [*]: cria avaliação pendente
+    cancelado --> [*]
+```
 
-## 🔧 Funcionalidades
+A agenda pública usa a função `horarios_ocupados`, que informa os horários reservados sem
+expor nome ou telefone de clientes.
 
-### Permissões por Tipo de Usuário:
+## Convite de funcionário
 
-**🟢 CLIENTES**
-- ✅ Visualizar próprio perfil
-- ✅ Editar próprio perfil
+```mermaid
+sequenceDiagram
+    participant A as Admin
+    participant DB as Banco
+    participant F as Funcionário
+    A->>DB: Cria convite (o token é gerado pelo banco)
+    A->>F: Envia o link com o token
+    F->>DB: get_convite_por_token(token)
+    DB-->>F: Dados do convite
+    F->>DB: Cria a conta com role funcionario
+    DB->>DB: handle_new_user vincula à barbearia
+    DB->>DB: Marca o convite como usado
+```
 
-**🟡 FUNCIONÁRIOS**
-- ✅ Visualizar próprio perfil
-- ✅ Editar próprio perfil
-- ✅ Visualizar perfis da mesma barbearia
+## Fidelidade
 
-**🔴 ADMINS**
-- ✅ Visualizar próprio perfil
-- ✅ Editar próprio perfil
-- ✅ Visualizar perfis da mesma barbearia
-- ✅ Editar perfis da mesma barbearia
+O saldo fica em `fidelidade`, identificado pelo telefone em cada barbearia. A equipe lança
+os pontos, e o resgate acontece pela função `resgatar_recompensa`:
 
-**⚙️ SYSTEM (Service Role)**
-- ✅ Acesso completo
+```mermaid
+flowchart TD
+    A["Pedido de resgate"] --> B{"É o dono do telefone<br/>ou da equipe?"}
+    B -->|"não"| X["Recusa"]
+    B -->|"sim"| C{"Recompensa ativa?"}
+    C -->|"não"| X
+    C -->|"sim"| D["Trava o saldo do cliente"]
+    D --> E{"Pontos suficientes?"}
+    E -->|"não"| X
+    E -->|"sim"| F["Registra o resgate<br/>e desconta os pontos"]
+```
 
-## 🛡️ Segurança
+## Imagens
 
-- Funções PL/pgSQL evitam subqueries recursivas
-- Validação de `barbearia_id` não nulo
-- Índices otimizados para performance
-- Políticas testadas individualmente
+Os buckets públicos `logos` e `gallery` aceitam imagens de até 5 MB. Cada arquivo fica em
+uma pasta com o id da barbearia, e só o admin dela pode enviar, trocar ou remover.
+
+## Configurações fora do SQL
+
+Estes ajustes ficam no painel do Supabase ou na hospedagem:
+
+- **Confirmação de e-mail:** em Authentication > Sign In / Providers. O app foi feito com ela
+  desligada; ligada, a pessoa precisa confirmar o e-mail antes de entrar.
+- **URLs de autenticação:** em Authentication > URL Configuration, informe o domínio do app.
+- **Variáveis da hospedagem:** `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` na Netlify ou
+  Vercel. O arquivo `.env` local não vai para o git.
+- **Segredos das Edge Functions:** chaves da Stripe e do serviço de e-mail.

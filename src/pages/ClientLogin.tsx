@@ -13,6 +13,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { mensagemErroLogin } from "@/lib/auth-errors";
 
 export default function ClientLogin() {
 	const [showPassword, setShowPassword] = useState(false);
@@ -43,8 +44,7 @@ export default function ClientLogin() {
 		if (error) {
 			toast({
 				title: "Erro no login",
-				description:
-					"Credenciais inválidas. Verifique seu e-mail e senha.",
+				description: mensagemErroLogin(error),
 				variant: "destructive",
 			});
 		} else {
@@ -72,7 +72,7 @@ export default function ClientLogin() {
   }
 
 	return (
-		<div className="min-h-screen w-full bg-gradient-to-br from-background to-blue-950/20 flex flex-col items-center justify-center p-4 relative">
+		<div className="min-h-screen w-full bg-background flex flex-col items-center justify-center p-4 relative">
 			<main className="z-10 flex flex-col items-center text-center w-full max-w-md">
 				<Link
 					to="/"

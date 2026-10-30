@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { BarChart3, Calendar, CalendarClock, Link as LinkIcon, Menu, Users, Scissors, Award, MessageSquare, Settings, LogOut, Clock, User, Home, CreditCard } from "lucide-react";
+import { LayoutDashboard, Calendar, CalendarClock, Link as LinkIcon, Menu, Users, Scissors, Award, MessageSquare, Settings, LogOut, Clock, User, Home, CreditCard } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -15,11 +15,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const adminMenuItems = [
-  {
-    title: "Minha Agenda",
-    url: "/dashboard/agenda",
-    icon: CalendarClock,
-  },
   {
     title: "Funcionários",
     url: "/dashboard/funcionarios",
@@ -65,14 +60,14 @@ const adminMenuItems = [
     url: "/dashboard/subscription",
     icon: CreditCard,
   },
+  {
+    title: "Compartilhar Perfil",
+    url: "/dashboard/share-profile",
+    icon: LinkIcon,
+  },
 ];
 
 const funcionarioMenuItems = [
-  {
-    title: "Minha Agenda",
-    url: "/dashboard/agenda",
-    icon: CalendarClock,
-  },
   {
     title: "Meus Horários",
     url: "/dashboard/horarios",
@@ -172,22 +167,20 @@ export function MobileBottomNav() {
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-sm border-t border-border/50 px-2 py-1 safe-area-pb">
       <div className="flex items-center justify-around max-w-md mx-auto">
-        {/* Dashboard */}
-        <NavLink to="/dashboard" className={getNavButtonClass('/dashboard')} aria-label="Dashboard" title="Dashboard">
-          <BarChart3 className="w-5 h-5 mb-1" />
-          <span className="text-xs font-medium">Dashboard</span>
+        <NavLink to="/dashboard" className={getNavButtonClass('/dashboard')} aria-label="Início" title="Início">
+          <LayoutDashboard className="w-5 h-5 mb-1" />
+          <span className="text-xs font-medium">Início</span>
+        </NavLink>
+
+        <NavLink to="/dashboard/agenda" className={getNavButtonClass('/dashboard/agenda')} aria-label="Agenda" title="Agenda">
+          <CalendarClock className="w-5 h-5 mb-1" />
+          <span className="text-xs font-medium">Agenda</span>
         </NavLink>
 
         {/* Agendamentos */}
         <NavLink to="/dashboard/agendamentos" className={getNavButtonClass('/dashboard/agendamentos')} aria-label="Agendamentos" title="Agendamentos">
           <Calendar className="w-5 h-5 mb-1" />
           <span className="text-xs font-medium">Agendamentos</span>
-        </NavLink>
-
-        {/* Compartilhar Perfil */}
-        <NavLink to="/dashboard/share-profile" className={getNavButtonClass('/dashboard/share-profile')} aria-label="Compartilhar" title="Compartilhar">
-          <LinkIcon className="w-5 h-5 mb-1" />
-          <span className="text-xs font-medium">Compartilhar</span>
         </NavLink>
 
         {/* Menu Dropdown */}

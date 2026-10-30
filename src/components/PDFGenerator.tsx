@@ -2,7 +2,7 @@ import { jsPDF } from 'jspdf';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
-interface AppointmentData {
+export interface AppointmentData {
   id: string;
   cliente_nome: string;
   cliente_telefone: string;
@@ -26,7 +26,6 @@ interface AppointmentData {
 }
 
 export const generatePDFReceipt = async (appointment: AppointmentData) => {
-  console.log('Gerando PDF com dados:', appointment);
 
   try {
     const doc = new jsPDF();
@@ -49,8 +48,8 @@ export const generatePDFReceipt = async (appointment: AppointmentData) => {
           img.onerror = reject;
           img.src = appointment.barbearia?.logo_url || '';
         });
-      } catch (error) {
-        console.log('Erro ao carregar logo da barbearia:', error);
+      } catch {
+        // Sem o logo o comprovante continua válido; segue sem ele
       }
     }
   };
@@ -234,7 +233,6 @@ export const generatePDFReceipt = async (appointment: AppointmentData) => {
 
     // Save the PDF
     const fileName = `comprovante-agendamento-${appointment.id ? appointment.id.substring(0, 8) : 'agendamento'}.pdf`;
-    console.log('Salvando PDF:', fileName);
     doc.save(fileName);
   } catch (error) {
     console.error('Erro ao gerar PDF:', error);

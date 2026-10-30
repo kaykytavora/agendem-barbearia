@@ -32,18 +32,14 @@ const UserTypeSelection = () => {
 
 	if (authLoading || roleLoading) {
 		return (
-			<div className="min-h-screen w-full bg-gradient-to-br from-background to-blue-950/20 flex items-center justify-center">
+			<div className="min-h-screen w-full bg-background flex items-center justify-center">
 				<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
 			</div>
 		);
 	}
 
 	return (
-		<div className="min-h-screen w-full bg-gradient-to-br from-background to-blue-950/20 flex flex-col items-center justify-between p-4 relative overflow-hidden">
-			{/* Floating Shapes */}
-			<div className="absolute top-20 left-20 w-48 h-48 bg-primary/10 rounded-full filter blur-3xl animate-blob"></div>
-			<div className="absolute bottom-20 right-20 w-48 h-48 bg-secondary/10 rounded-full filter blur-3xl animate-blob animation-delay-4000"></div>
-
+		<div className="min-h-screen w-full bg-background flex flex-col items-center justify-between p-4 relative overflow-hidden">
 			{/* Theme Toggle */}
 			<div className="absolute top-6 right-6 z-50">
 				<ThemeToggle />

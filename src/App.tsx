@@ -1,5 +1,5 @@
 import { Suspense, lazy } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "./providers/ThemeProvider";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -30,7 +30,7 @@ const Login = lazy(() => import("./pages/Login"));
 const ClientLogin = lazy(() => import("./pages/ClientLogin"));
 const Register = lazy(() => import("./pages/Register"));
 const RegisterBarbershop = lazy(() => import("./pages/RegisterBarbershop"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Inicio = lazy(() => import("./pages/Inicio"));
 const Services = lazy(() => import("./pages/Services"));
 const Team = lazy(() => import("./pages/Team"));
 const Appointments = lazy(() => import("./pages/Appointments"));
@@ -124,10 +124,12 @@ const App = () => (
 									path="/dashboard"
 									element={
 										<ProtectedRoute requiredRole="funcionario">
-											<Dashboard />
+											<Inicio />
 										</ProtectedRoute>
 									}
 								/>
+								{/* A tela "Hoje" virou o Início; o endereço antigo continua funcionando */}
+								<Route path="/dashboard/hoje" element={<Navigate to="/dashboard" replace />} />
 								<Route
 									path="/dashboard/agenda"
 									element={

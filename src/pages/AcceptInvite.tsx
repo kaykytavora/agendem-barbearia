@@ -10,11 +10,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface InviteData {
-  id: string;
   email: string;
   barbearia_id: string;
   funcionario_data: any; // Using any to avoid JSON type conflicts
-  usado: boolean;
   expires_at: string;
 }
 
@@ -59,41 +57,17 @@ export default function AcceptInvite() {
       return;
     }
 
-    console.log("Loading invite data for token:", token);
-
     try {
-      // Primeiro, vamos buscar todos os convites para debug
-      const { data: allInvites, error: debugError } = await supabase
-        .from('funcionario_convites')
-        .select('id, email, token, usado, expires_at')
-        .order('created_at', { ascending: false })
-        .limit(10);
+      // A função só devolve convites com esse token exato que ainda não foram usados nem expiraram
+      const { data, error } = await supabase.rpc('get_convite_por_token', { p_token: token });
+      const convite = data?.[0];
 
-      console.log("Recent invites (debug):", allInvites);
-      console.log("Debug query error:", debugError);
-
-      const { data, error } = await supabase
-        .from('funcionario_convites')
-        .select('*')
-        .eq('token', token)
-        .eq('usado', false)
-        .single();
-
-      console.log("Invite query result:", { data, error });
-
-      if (error || !data) {
-        console.error("Query error details:", error);
-        throw new Error("Convite não encontrado ou já utilizado");
+      if (error || !convite) {
+        console.error("Erro ao buscar convite:", error);
+        throw new Error("Convite não encontrado, já utilizado ou expirado");
       }
 
-      // Verificar se não expirou
-      if (data.expires_at && new Date(data.expires_at) < new Date()) {
-        console.log("Invite expired:", data.expires_at, "vs", new Date().toISOString());
-        throw new Error("Convite expirado");
-      }
-
-      console.log("Invite data loaded successfully:", data);
-      setInviteData(data as InviteData);
+      setInviteData(convite as InviteData);
     } catch (error: any) {
       console.error("Erro ao carregar convite:", error);
       toast({
@@ -142,7 +116,6 @@ export default function AcceptInvite() {
         throw new Error("Email ou senha não fornecidos");
       }
 
-      console.log("Criando conta de autenticação via signUp...");
 
       // MÉTODO CORRETO: Criar conta de usuário via signUp
       // O trigger handle_new_user criará automaticamente o perfil e registro de funcionário
@@ -162,20 +135,7 @@ export default function AcceptInvite() {
         throw new Error(signUpError.message || "Erro ao criar conta");
       }
 
-      console.log("Conta criada com sucesso");
-
-      // Marcar convite como usado
-      if (token) {
-        const { error: updateError } = await supabase
-          .from('funcionario_convites')
-          .update({ usado: true })
-          .eq('token', token);
-
-        if (updateError) {
-          console.warn("Erro ao marcar convite como usado:", updateError);
-          // Não bloqueia o fluxo, apenas avisa
-        }
-      }
+      // O convite é marcado como usado pelo próprio banco (handle_new_user) ao criar a conta
 
       toast({
         title: "Sucesso!",

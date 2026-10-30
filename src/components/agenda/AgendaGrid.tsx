@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { format, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -103,7 +104,7 @@ export function AgendaGrid({ days, viewMode, selectedDayIndex, onSlotClick }: Ag
 
           {/* Time slots */}
           {uniqueTimeSlots.map((time) => (
-            <>
+            <Fragment key={`row-${time}`}>
               <div
                 key={`time-${time}`}
                 className="text-[10px] text-muted-foreground text-right pr-2 pt-1 font-medium"
@@ -136,7 +137,7 @@ export function AgendaGrid({ days, viewMode, selectedDayIndex, onSlotClick }: Ag
                   />
                 );
               })}
-            </>
+            </Fragment>
           ))}
         </div>
       </div>

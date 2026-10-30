@@ -1,110 +1,64 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { RealtimeChannel } from '@supabase/supabase-js';
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+
+type Payload = RealtimePostgresChangesPayload<Record<string, any>>;
 
 interface UseRealtimeSubscriptionOptions {
   channelName: string;
   table: string;
   filter?: string;
-  onUpdate: (payload: any) => void;
+  event?: 'INSERT' | 'UPDATE' | 'DELETE' | '*';
+  onUpdate: (payload: Payload) => void;
   enabled?: boolean;
+  /** Espera antes de conectar: se a tela sair antes disso, nenhum WebSocket chega a ser aberto. */
   delay?: number;
 }
 
+/**
+ * Escuta mudanças de uma tabela pelo Supabase Realtime.
+ *
+ * O canal só é recriado quando muda o que ele escuta (tabela, filtro, evento). Antes, `onUpdate`
+ * entrava nas dependências e, como as telas passam uma função nova a cada renderização, o canal
+ * era fechado e reaberto o tempo todo; fechar antes de conectar gerava no console
+ * "WebSocket is closed before the connection is established".
+ */
 export function useRealtimeSubscription({
   channelName,
   table,
   filter,
+  event = '*',
   onUpdate,
   enabled = true,
-  delay = 1000
+  delay = 1000,
 }: UseRealtimeSubscriptionOptions) {
-  const channelRef = useRef<RealtimeChannel | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const isConnectedRef = useRef(false);
+  const onUpdateRef = useRef(onUpdate);
+  onUpdateRef.current = onUpdate;
 
   useEffect(() => {
-    if (!enabled) {
-      // Cleanup if disabled
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-        isConnectedRef.current = false;
-      }
-      return;
-    }
+    if (!enabled) return;
 
-    // Clear any existing timeout
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-
-    // Delay the connection to avoid WebSocket issues
-    timeoutRef.current = setTimeout(() => {
-      try {
-        // Remove existing channel if any
-        if (channelRef.current) {
-          supabase.removeChannel(channelRef.current);
-        }
-
-        // Create new channel
-        const channel = supabase.channel(channelName);
-        
-        // Configure postgres changes listener
-        const config: any = {
-          event: '*',
-          schema: 'public',
-          table
-        };
-        
-        if (filter) {
-          config.filter = filter;
-        }
-
-        channel.on('postgres_changes', config, (payload) => {
-          onUpdate(payload);
-        });
-
-        // Subscribe with status callback
-        channel.subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            isConnectedRef.current = true;
-          } else if (status === 'CHANNEL_ERROR') {
-            isConnectedRef.current = false;
-            console.warn(`❌ Erro na conexão Realtime [${channelName}]:`, status);
-          } else if (status === 'TIMED_OUT') {
-            isConnectedRef.current = false;
-            console.warn(`⏰ Timeout na conexão Realtime [${channelName}]`);
-          } else if (status === 'CLOSED') {
-            isConnectedRef.current = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    const timeout = setTimeout(() => {
+      channel = supabase
+        .channel(filter ? `${channelName}:${filter}` : channelName)
+        .on(
+          'postgres_changes' as any,
+          { event, schema: 'public', table, ...(filter ? { filter } : {}) },
+          (payload: Payload) => onUpdateRef.current(payload)
+        )
+        .subscribe((status) => {
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.warn(`Realtime [${channelName}]: ${status}`);
           }
         });
-
-        channelRef.current = channel;
-      } catch (error) {
-        console.error(`Erro ao configurar Realtime [${channelName}]:`, error);
-      }
     }, delay);
 
-    // Cleanup function
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-      
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-        isConnectedRef.current = false;
-      }
+      clearTimeout(timeout);
+      if (channel) supabase.removeChannel(channel);
     };
-  }, [channelName, table, filter, onUpdate, enabled, delay]);
-
-  return {
-    isConnected: isConnectedRef.current,
-    channel: channelRef.current
-  };
+  }, [channelName, table, filter, event, enabled, delay]);
 }
 
 export default useRealtimeSubscription;

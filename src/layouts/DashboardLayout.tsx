@@ -8,9 +8,6 @@ import { useTheme } from "@/hooks/useTheme";
 import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Notifications } from "@/components/notifications/Notifications";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -19,8 +16,6 @@ interface DashboardLayoutProps {
 function DashboardLayoutContent({ children }: DashboardLayoutProps) {
   const { theme, setTheme, isClientRoute } = useTheme();
   const { openMobile, setOpenMobile } = useSidebar();
-  const { user, profile, refreshProfile } = useAuth();
-  const { toast } = useToast();
 
   // Força tema escuro para dashboard se não estiver em rota de cliente
   useEffect(() => {
@@ -31,99 +26,6 @@ function DashboardLayoutContent({ children }: DashboardLayoutProps) {
       }
     }
   }, [isClientRoute, theme, setTheme]);
-
-  // Auto-fix: Check for role mismatch and fix it
-  useEffect(() => {
-    const checkAndFixRole = async () => {
-      if (!user) return;
-
-      try {
-        // Check actual role in funcionarios table
-        const { data: funcionario, error } = await supabase
-          .from('funcionarios')
-          .select('nivel')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (error) {
-          console.error("Error fetching funcionario:", error);
-        }
-
-        if (funcionario) {
-          const dbRole = funcionario.nivel;
-          const shouldBeAdmin = dbRole === 'dono' || dbRole === 'gerente';
-          const currentIsAdmin = profile?.role === 'admin';
-
-          if (shouldBeAdmin && !currentIsAdmin) {
-            console.log("Fixing role mismatch: User is", dbRole, "but profile is", profile?.role);
-
-            const { error: updateError } = await supabase
-              .from('profiles')
-              .update({ role: 'admin' })
-              .eq('user_id', user.id);
-
-            if (!updateError) {
-              console.log("Role fixed successfully");
-              await refreshProfile();
-              toast({
-                title: "Permissões atualizadas",
-                description: "Suas permissões de acesso foram corrigidas. O sistema foi atualizado.",
-              });
-            }
-          }
-        }
-      } catch (err) {
-        console.error("Error in auto-fix role:", err);
-      }
-    };
-
-    checkAndFixRole();
-  }, [user, profile, refreshProfile, toast]);
-
-  // Emergency Fix: Headless Recovery
-  // If user has a barbershop but is not admin, AND there are NO admins for this barbershop, promote user.
-  useEffect(() => {
-    const checkHeadlessState = async () => {
-      if (!user || !profile?.barbearia_id || profile.role === 'admin') return;
-
-      try {
-        // Count how many admins exist for this barbershop
-        const { count, error } = await supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true })
-          .eq('barbearia_id', profile.barbearia_id)
-          .eq('role', 'admin');
-
-        if (error) {
-          console.error("Error checking admin count:", error);
-          return;
-        }
-
-        // If NO admins exist, this is a headless state. Promote current user.
-        if (count === 0) {
-          console.log("Headless state detected! Promoting current user to admin.");
-
-          const { error: updateError } = await supabase
-            .from('profiles')
-            .update({ role: 'admin' })
-            .eq('user_id', user.id);
-
-          if (!updateError) {
-            await refreshProfile();
-            toast({
-              title: "Acesso de Dono Restaurado",
-              description: "Detectamos que não havia administradores na barbearia. Seu acesso foi restaurado.",
-              variant: "default"
-            });
-          }
-        }
-      } catch (err) {
-        console.error("Error in headless recovery:", err);
-      }
-    };
-
-    checkHeadlessState();
-  }, [user, profile, refreshProfile, toast]);
 
   return (
     <div className="min-h-screen flex w-full bg-gradient-bg">

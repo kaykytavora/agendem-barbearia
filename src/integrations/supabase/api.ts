@@ -55,7 +55,6 @@ export const createAppointment = async (
         throw new Error(`Erro ao processar dados do cliente: ${customerError.message}`);
       } else if (customerData?.customer_id) {
         // customerId is used by find-or-create-customer edge function
-        console.log('Customer ID:', customerData.customer_id);
       }
     } catch (error) {
       console.error('Erro na Edge Function find-or-create-customer:', error);

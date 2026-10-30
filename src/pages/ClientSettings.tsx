@@ -161,7 +161,6 @@ const ClientSettings = () => {
 
 		setIsDeleting(true);
 		try {
-			console.log("Initiating account deletion for user:", user.email);
 
 			// Obtém a sessão atual para garantir que o token está válido
 			const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
@@ -169,14 +168,13 @@ const ClientSettings = () => {
 				throw new Error("Sessão inválida ou expirada. Faça login novamente.");
 			}
 
-			const { data, error } = await supabase.functions.invoke("delete-client-account");
+			const { error } = await supabase.functions.invoke("delete-client-account");
 
 			if (error) {
 				console.error("Edge function error:", error);
 				throw new Error(error.message);
 			}
 
-			console.log("Account deletion response:", data);
 
 			toast({
 				title: "Sucesso",

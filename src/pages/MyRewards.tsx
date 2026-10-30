@@ -279,7 +279,7 @@ export default function MyRewards() {
 
 	if (loadingFidelidade || loadingRecompensas || loadingResgates) {
 		return (
-			<div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 p-4">
+			<div className="min-h-screen bg-background p-4">
 				<div className="max-w-4xl mx-auto space-y-6">
 					{/* Header */}
 					<div className="flex items-center gap-4">
@@ -312,7 +312,7 @@ export default function MyRewards() {
 	}
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 p-4">
+		<div className="min-h-screen bg-background p-4">
 			<div className="max-w-4xl mx-auto space-y-6">
 				{/* Header */}
 				<div className="flex items-center gap-4">
@@ -330,7 +330,7 @@ export default function MyRewards() {
 				</div>
 
 				{/* Summary Card */}
-				<Card className="border-border/50 bg-gradient-to-r from-primary/10 via-primary/5 to-background backdrop-blur-sm">
+				<Card className="border-border/50 bg-accent">
 					<CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
 						<div className={`flex ${isMobile ? 'flex-col space-y-4' : 'items-center justify-between'}`}>
 							<div className="flex items-center gap-4">

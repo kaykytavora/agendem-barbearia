@@ -5,7 +5,6 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Volume2, VolumeX, Bell, BellOff, Play, Zap, Check } from 'lucide-react';
-import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
 import { toast } from '@/hooks/use-toast';
@@ -139,25 +138,8 @@ export const NotificationSound = () => {
     }
   };
 
-  // Subscribe to new appointments
-  useRealtimeSubscription({
-    channelName: 'appointments-notifications',
-    table: 'agendamentos',
-    onUpdate: (payload) => {
-      if (payload.eventType === 'INSERT') {
-        // Play sound notification
-        playNotificationSound();
-        
-        // Show toast notification
-        toast({
-          title: "Novo Agendamento!",
-          description: `${payload.new.cliente_nome} agendou um horário.`,
-          duration: 5000,
-        });
-      }
-    },
-    enabled: !!shouldSubscribe
-  });
+  // Novos agendamentos são avisados pelo sino do topo (components/notifications/Notifications.tsx).
+  // Este componente só configura e testa o som; escutar aqui também duplicava o aviso.
 
   const enableAudio = async () => {
     try {
@@ -234,7 +216,7 @@ export const NotificationSound = () => {
           {!audioEnabled && soundEnabled ? (
             /* Audio Enable Section - só mostra se som está ativo mas áudio não foi habilitado */
             <div className="text-center space-y-4">
-              <div className="w-16 h-16 mx-auto bg-gradient-to-br from-primary/20 to-accent/20 rounded-full flex items-center justify-center">
+              <div className="w-16 h-16 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
                 <Volume2 className="h-8 w-8 text-primary" />
               </div>
               <div className="space-y-2">
@@ -245,7 +227,7 @@ export const NotificationSound = () => {
               </div>
               <Button
                 onClick={enableAudio}
-                className="w-full sm:w-auto px-8 py-3 text-base font-medium bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300 transform hover:scale-105"
+                className="w-full sm:w-auto px-8 py-3 text-base font-medium bg-primary hover:bg-primary/90 transition-all duration-300 transform hover:scale-105"
               >
                 <Zap className="w-5 h-5 mr-2" />
                 Habilitar Áudio

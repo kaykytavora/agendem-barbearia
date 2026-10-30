@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
@@ -14,6 +14,8 @@ interface AuthContextType {
   profile: Profile | null;
   barbeariaId: string | null;
   loading: boolean; // Continuará sendo a flag principal para os componentes
+  /** true quando o perfil não pôde ser carregado (rede/servidor) e não há cópia local */
+  profileError: boolean;
   signUp: (email: string, password: string, options?: { data?: Record<string, unknown> }) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<{ error: Error | null }>;
@@ -24,398 +26,153 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const PROFILE_TIMEOUT_MS = 10000;
+const profileCacheKey = (userId: string) => `user_profile_${userId}`;
+
+type ProfileResult =
+  | { status: 'ok'; profile: Profile }
+  | { status: 'not_found' }
+  | { status: 'error'; error: unknown };
+
+async function fetchProfile(userId: string): Promise<ProfileResult> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error('Profile fetch timeout')), PROFILE_TIMEOUT_MS);
+    });
+    const { data, error } = await Promise.race([
+      supabase.from('profiles').select('*').eq('user_id', userId).single(),
+      timeout,
+    ]);
+
+    if (error) {
+      return error.code === 'PGRST116' ? { status: 'not_found' } : { status: 'error', error };
+    }
+    return { status: 'ok', profile: data };
+  } catch (error) {
+    return { status: 'error', error };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function readCachedProfile(userId: string): Profile | null {
+  try {
+    const cached = localStorage.getItem(profileCacheKey(userId));
+    return cached ? (JSON.parse(cached) as Profile) : null;
+  } catch (error) {
+    logger.error('Error reading cached profile', error);
+    return null;
+  }
+}
+
+function writeCachedProfile(profile: Profile) {
+  try {
+    localStorage.setItem(profileCacheKey(profile.user_id), JSON.stringify(profile));
+  } catch (error) {
+    logger.error('Error caching profile data', error);
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [barbeariaId, setBarbeariaId] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState(false);
   const [authLoading, setAuthLoading] = useState(true); // Carregamento da autenticação
-  const [profileLoading, setProfileLoading] = useState(true); // Carregamento do perfil
+  const [profileLoading, setProfileLoading] = useState(true); // Carregamento inicial do perfil
 
-  // Memoiza a função de busca de sessão e perfil para evitar recriações desnecessárias
+  // Usuário atual acessível dentro do listener de auth sem recriar a inscrição
+  const userIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    userIdRef.current = user?.id ?? null;
+  }, [user]);
+
+  const applyProfile = useCallback((nextProfile: Profile | null) => {
+    setProfile(nextProfile);
+    setRole(nextProfile?.role ?? null);
+    setBarbeariaId(nextProfile?.barbearia_id ?? null);
+  }, []);
+
+  const loadProfile = useCallback(async (currentUser: User | null) => {
+    if (!currentUser) {
+      applyProfile(null);
+      setProfileError(false);
+      return;
+    }
+
+    const result = await fetchProfile(currentUser.id);
+
+    if (result.status === 'ok') {
+      applyProfile(result.profile);
+      writeCachedProfile(result.profile);
+      setProfileError(false);
+    } else if (result.status === 'not_found') {
+      applyProfile(null);
+      setProfileError(false);
+    } else {
+      // Falha temporária (rede, timeout, erro 500): usa o último perfil conhecido.
+      // Nunca presumimos um papel padrão, para não rebaixar um admin a cliente.
+      logger.error('Error fetching profile', { userId: currentUser.id, error: result.error });
+      const cached = readCachedProfile(currentUser.id);
+      applyProfile(cached);
+      setProfileError(!cached);
+    }
+  }, [applyProfile]);
+
   const fetchSessionAndProfile = useCallback(async () => {
-    console.log('fetchSessionAndProfile called');
-
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError) {
-        logger.error("Error fetching session", sessionError);
-        setAuthLoading(false);
-        setProfileLoading(false);
-        return;
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        logger.error('Error fetching session', error);
       }
 
       const currentUser = session?.user ?? null;
-
-      setSession(session);
+      setSession(session ?? null);
       setUser(currentUser);
-      setAuthLoading(false); // Auth carregado
+      setAuthLoading(false);
 
-      console.log('Current user ID:', currentUser?.id);
-
-      // Apenas busque o perfil se houver um usuário na sessão atual
-      if (currentUser) {
-        try {
-          // Tentar buscar perfil com timeout para evitar travamentos
-          const profilePromise = supabase
-            .from('profiles')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .single();
-
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
-          );
-
-          const { data: profileData, error: profileError } = await Promise.race([
-            profilePromise,
-            timeoutPromise
-          ]) as any;
-
-          if (profileError) {
-            if (profileError.code !== 'PGRST116') {
-              logger.error("Error fetching profile", {
-                error: profileError,
-                userId: currentUser.id,
-                code: profileError.code,
-                message: profileError.message,
-                details: profileError.details
-              });
-            }
-
-            // Para erro 500 ou problemas de RLS, tentar recuperar do cache local
-            if (profileError.code === 'PGRST301' ||
-                profileError.message?.includes('500') ||
-                profileError.code === '42501' ||
-                profileError.details?.includes('500')) {
-              logger.warn("RLS/500 error detected, checking cached profile");
-
-              // Tentar recuperar dados do cache local
-              const cachedProfile = localStorage.getItem(`user_profile_${currentUser.id}`);
-              if (cachedProfile) {
-                try {
-                  const parsedProfile = JSON.parse(cachedProfile);
-                  logger.info("Using cached profile data during RLS error");
-                  setProfile(parsedProfile);
-                  setRole(parsedProfile.role);
-                  setBarbeariaId(parsedProfile.barbearia_id);
-                } catch (cacheError) {
-                  logger.error("Error parsing cached profile", cacheError);
-                  // Fallback para valores padrão
-                  setProfile({
-                    id: '',
-                    user_id: currentUser.id,
-                    name: currentUser.user_metadata?.name || currentUser.email?.split('@')[0] || 'Usuário',
-                    phone: null,
-                    role: 'cliente' as any,
-                    barbearia_id: null,
-                    receber_lembretes_email: true,
-                    receber_lembretes_sms: false,
-                    consentimento_marketing: false,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                  });
-                  setRole('cliente' as any);
-                  setBarbeariaId(null);
-                }
-              } else {
-                logger.warn("No cached profile found, using default cliente values");
-                setProfile({
-                  id: '',
-                  user_id: currentUser.id,
-                  name: currentUser.user_metadata?.name || currentUser.email?.split('@')[0] || 'Usuário',
-                  phone: null,
-                  role: 'cliente' as any,
-                  barbearia_id: null,
-                  receber_lembretes_email: true,
-                  receber_lembretes_sms: false,
-                  consentimento_marketing: false,
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString()
-                });
-                setRole('cliente' as any);
-                setBarbeariaId(null);
-              }
-            } else {
-              // Fallback para 'cliente' se o perfil não for encontrado (pode não existir ainda)
-              logger.warn("Profile not found, using default cliente role");
-              setProfile(null);
-              setRole('cliente' as any);
-              setBarbeariaId(null);
-            }
-          } else {
-            // Sucesso: atualizar estado e cache
-            setProfile(profileData);
-            setRole(profileData.role);
-            setBarbeariaId(profileData.barbearia_id);
-
-            // Salvar no cache local para uso durante problemas de RLS
-            try {
-              localStorage.setItem(`user_profile_${currentUser.id}`, JSON.stringify(profileData));
-            } catch (cacheError) {
-              logger.error("Error caching profile data", cacheError);
-            }
-          }
-        } catch (error: any) {
-          logger.error("Unexpected error fetching profile", {
-            error: error.message,
-            userId: currentUser.id,
-            stack: error.stack
-          });
-
-          // Tentar recuperar do cache local primeiro
-          const cachedProfile = localStorage.getItem(`user_profile_${currentUser.id}`);
-          if (cachedProfile) {
-            try {
-              const parsedProfile = JSON.parse(cachedProfile);
-              logger.info("Using cached profile data during unexpected error");
-              setProfile(parsedProfile);
-              setRole(parsedProfile.role);
-              setBarbeariaId(parsedProfile.barbearia_id);
-            } catch (cacheError) {
-              logger.error("Error parsing cached profile during fallback", cacheError);
-              // Para qualquer erro (incluindo 500, timeout, etc), definir valores padrão
-              setProfile({
-                id: '',
-                user_id: currentUser.id,
-                name: currentUser.user_metadata?.name || currentUser.email?.split('@')[0] || 'Usuário',
-                phone: null,
-                role: 'cliente' as any,
-                barbearia_id: null,
-                receber_lembretes_email: true,
-                receber_lembretes_sms: false,
-                consentimento_marketing: false,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              });
-              setRole('cliente' as any);
-              setBarbeariaId(null);
-            }
-          } else {
-            logger.warn("No cached profile found during unexpected error, using default values");
-            setProfile({
-              id: '',
-              user_id: currentUser.id,
-              name: currentUser.user_metadata?.name || currentUser.email?.split('@')[0] || 'Usuário',
-              phone: null,
-              role: 'cliente' as any,
-              barbearia_id: null,
-              receber_lembretes_email: true,
-              receber_lembretes_sms: false,
-              consentimento_marketing: false,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            });
-            setRole('cliente' as any);
-            setBarbeariaId(null);
-          }
-        }
-      } else {
-        // Se não houver usuário, garanta que todo o estado relacionado seja nulo.
-        setProfile(null);
-        setRole(null);
-        setBarbeariaId(null);
-      }
+      await loadProfile(currentUser);
     } catch (error) {
-      logger.error("Error in fetchSessionAndProfile", error);
+      logger.error('Error in fetchSessionAndProfile', error);
       setUser(null);
       setSession(null);
-      setProfile(null);
-      setRole(null);
-      setBarbeariaId(null);
+      applyProfile(null);
       setAuthLoading(false);
     } finally {
-      setProfileLoading(false); // Perfil carregado
+      setProfileLoading(false);
     }
-  }, []);
+  }, [loadProfile, applyProfile]);
 
   useEffect(() => {
     fetchSessionAndProfile();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log('Auth state change:', event, session?.user?.id);
-
-        if (event === 'SIGNED_OUT') {
-          // Garantir limpeza imediata no logout
-          setUser(null);
-          setSession(null);
-          setProfile(null);
-          setRole(null);
-          setBarbeariaId(null);
-          setAuthLoading(false);
-          setProfileLoading(false);
-        } else if (event === 'SIGNED_IN') {
-          // Só buscar perfil quando usuário fizer login
-          fetchSessionAndProfile();
-        }
-        // Ignorar TOKEN_REFRESHED e INITIAL_SESSION para evitar calls desnecessários
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (event === 'SIGNED_OUT') {
+        // Garantir limpeza imediata no logout
+        setUser(null);
+        setSession(null);
+        applyProfile(null);
+        setProfileError(false);
+        setAuthLoading(false);
+        setProfileLoading(false);
+      } else if (event === 'SIGNED_IN' && newSession?.user.id !== userIdRef.current) {
+        // O Supabase reemite SIGNED_IN sempre que a aba volta ao foco; só recarrega se o usuário mudou
+        fetchSessionAndProfile();
       }
-    );
+      // Ignorar TOKEN_REFRESHED e INITIAL_SESSION para evitar calls desnecessários
+    });
 
     return () => subscription.unsubscribe();
-  }, [fetchSessionAndProfile]);
+  }, [fetchSessionAndProfile, applyProfile]);
 
+  // Recarrega o perfil em segundo plano, sem mostrar o loader de página inteira.
   const refreshProfile = useCallback(async () => {
-    if (user) {
-      setProfileLoading(true);
-      try {
-        // Tentar buscar perfil com timeout
-        const profilePromise = supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Profile refresh timeout')), 10000)
-        );
-
-        const { data: profileData, error: profileError } = await Promise.race([
-          profilePromise,
-          timeoutPromise
-        ]) as any;
-
-        if (profileError) {
-          if (profileError.code !== 'PGRST116') {
-            logger.error("Error refreshing profile", {
-              error: profileError,
-              userId: user.id,
-              code: profileError.code,
-              message: profileError.message
-            });
-          }
-
-          // Para erro 500 ou problemas de RLS, tentar recuperar do cache local
-          if (profileError.code === 'PGRST301' ||
-              profileError.message?.includes('500') ||
-              profileError.code === '42501' ||
-              profileError.details?.includes('500')) {
-            logger.warn("RLS/500 error detected during refresh, checking cached profile");
-
-            // Tentar recuperar dados do cache local
-            const cachedProfile = localStorage.getItem(`user_profile_${user.id}`);
-            if (cachedProfile) {
-              try {
-                const parsedProfile = JSON.parse(cachedProfile);
-                logger.info("Using cached profile data during refresh RLS error");
-                setProfile(parsedProfile);
-                setRole(parsedProfile.role);
-                setBarbeariaId(parsedProfile.barbearia_id);
-              } catch (cacheError) {
-                logger.error("Error parsing cached profile during refresh", cacheError);
-                setProfile({
-                  id: '',
-                  user_id: user.id,
-                  name: user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário',
-                  phone: null,
-                  role: 'cliente' as any,
-                  barbearia_id: null,
-                  receber_lembretes_email: true,
-                  receber_lembretes_sms: false,
-                  consentimento_marketing: false,
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString()
-                });
-                setRole('cliente' as any);
-                setBarbeariaId(null);
-              }
-            } else {
-              logger.warn("No cached profile found during refresh, using default values");
-              setProfile({
-                id: '',
-                user_id: user.id,
-                name: user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário',
-                phone: null,
-                role: 'cliente' as any,
-                barbearia_id: null,
-                receber_lembretes_email: true,
-                receber_lembretes_sms: false,
-                consentimento_marketing: false,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              });
-              setRole('cliente' as any);
-              setBarbeariaId(null);
-            }
-          } else {
-            // Fallback para 'cliente' se o perfil não for encontrado
-            logger.warn("Profile not found during refresh, using default cliente role");
-            setProfile(null);
-            setRole('cliente' as any);
-            setBarbeariaId(null);
-          }
-        } else {
-          // Sucesso: atualizar estado e cache
-          setProfile(profileData);
-          setRole(profileData.role);
-          setBarbeariaId(profileData.barbearia_id);
-
-          // Salvar no cache local para uso durante problemas de RLS
-          try {
-            localStorage.setItem(`user_profile_${user.id}`, JSON.stringify(profileData));
-          } catch (cacheError) {
-            logger.error("Error caching profile data during refresh", cacheError);
-          }
-        }
-      } catch (error: any) {
-        logger.error("Unexpected error refreshing profile", {
-          error: error.message,
-          userId: user.id
-        });
-
-        // Em caso de erro crítico, tentar recuperar do cache primeiro
-        const cachedProfile = localStorage.getItem(`user_profile_${user.id}`);
-        if (cachedProfile) {
-          try {
-            const parsedProfile = JSON.parse(cachedProfile);
-            logger.info("Using cached profile data during refresh unexpected error");
-            setProfile(parsedProfile);
-            setRole(parsedProfile.role);
-            setBarbeariaId(parsedProfile.barbearia_id);
-          } catch (cacheError) {
-            logger.error("Error parsing cached profile during refresh fallback", cacheError);
-            setProfile({
-              id: '',
-              user_id: user.id,
-              name: user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário',
-              phone: null,
-              role: 'cliente' as any,
-              barbearia_id: null,
-              receber_lembretes_email: true,
-              receber_lembretes_sms: false,
-              consentimento_marketing: false,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            });
-            setRole('cliente' as any);
-            setBarbeariaId(null);
-          }
-        } else {
-          logger.warn("No cached profile found during refresh unexpected error, using default values");
-          setProfile({
-            id: '',
-            user_id: user.id,
-            name: user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário',
-            phone: null,
-            role: 'cliente' as any,
-            barbearia_id: null,
-            receber_lembretes_email: true,
-            receber_lembretes_sms: false,
-            consentimento_marketing: false,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          });
-          setRole('cliente' as any);
-          setBarbeariaId(null);
-        }
-      } finally {
-        setProfileLoading(false);
-      }
-    }
-  }, [user]);
+    const { data: { session } } = await supabase.auth.getSession();
+    await loadProfile(session?.user ?? null);
+  }, [loadProfile]);
 
   const signUp = async (email: string, password: string, options?: { data?: Record<string, unknown> }) => {
     try {
@@ -574,6 +331,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     profile,
     barbeariaId,
     loading: authLoading || profileLoading, // Combina os dois loadings
+    profileError,
     signUp,
     signIn,
     signOut,
