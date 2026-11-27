@@ -9,34 +9,80 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Eye, EyeOff, Lock, Mail, ArrowLeft, Loader2 } from "lucide-react";
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { mensagemErroLogin } from "@/lib/auth-errors";
+import { erroRetornoGoogle, googleDisponivel, mensagemLoginEquipe, sessaoSocial } from "@/lib/login-google";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function ClientLogin() {
 	const [showPassword, setShowPassword] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
+	const [entrandoComGoogle, setEntrandoComGoogle] = useState(false);
+	const [erroGoogle, setErroGoogle] = useState<string | null>(null);
 	const [formData, setFormData] = useState({ email: "", password: "" });
 
-	const { signIn, user, role, loading: authLoading } = useAuth();
+	const { signIn, user, session, role, loading: authLoading } = useAuth();
 	const navigate = useNavigate();
+	const { search, hash } = useLocation();
 	const { toast } = useToast();
+	const bloqueioEmAndamento = useRef(false);
+	const bloqueadoPorGoogle = (role === "admin" || role === "funcionario") && sessaoSocial(session);
+	const mensagemGoogle = erroGoogle ?? erroRetornoGoogle(search, hash);
+	const { data: mostrarGoogle } = useQuery({
+		queryKey: ["login-google-disponivel"],
+		queryFn: ({ signal }) => googleDisponivel(signal),
+		staleTime: 60_000,
+		retry: false,
+		enabled: !user,
+	});
 
 	// Redireciona baseado na role do usuário
 	useEffect(() => {
 		if (!authLoading && user && role) {
+			if (bloqueadoPorGoogle) {
+				setErroGoogle(mensagemLoginEquipe);
+				if (!bloqueioEmAndamento.current) {
+					bloqueioEmAndamento.current = true;
+					void supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+				}
+				return;
+			}
 			if (role === 'cliente') {
-				navigate("/client-panel");
+				navigate("/client-panel", { replace: true });
 			} else if (role === 'funcionario' || role === 'admin') {
 				navigate("/dashboard");
 			}
 		}
-	}, [user, authLoading, role, navigate]);
+	}, [user, authLoading, role, navigate, bloqueadoPorGoogle]);
+
+	async function entrarComGoogle() {
+		if (isLoading || entrandoComGoogle) return;
+		setEntrandoComGoogle(true);
+		setErroGoogle(null);
+
+		try {
+			const { error } = await supabase.auth.signInWithOAuth({
+				provider: "google",
+				options: {
+					redirectTo: new URL("/client-login", window.location.origin).href,
+					queryParams: { prompt: "select_account" },
+				},
+			});
+			if (!error) return;
+		} catch {
+			// O erro também pode ocorrer antes do redirecionamento.
+		}
+		setErroGoogle("Não foi possível abrir o login com Google. Tente novamente.");
+		setEntrandoComGoogle(false);
+	}
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
+		if (isLoading || entrandoComGoogle) return;
 		setIsLoading(true);
 
 		const { error } = await signIn(formData.email, formData.password);
@@ -98,10 +144,37 @@ export default function ClientLogin() {
 					<CardHeader>
 						<CardTitle className="text-2xl">Login do Cliente</CardTitle>
 						<CardDescription>
-							Use seu e-mail e senha para entrar.
+								{mostrarGoogle ? "Entre com Google ou use seu e-mail e senha." : "Use seu e-mail e senha para entrar."}
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
+						{mensagemGoogle && (
+							<p role="alert" className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+								{mensagemGoogle}
+								{mensagemGoogle === mensagemLoginEquipe && (
+									<Link to="/login" className="ml-1 font-medium underline">Login da barbearia</Link>
+								)}
+							</p>
+						)}
+						{mostrarGoogle && (
+							<div className="mb-5 space-y-4">
+								<Button
+									type="button"
+									variant="outline"
+									className="w-full border-[#747775] bg-white text-[#1f1f1f] hover:bg-[#f2f2f2] hover:text-[#1f1f1f]"
+									onClick={() => void entrarComGoogle()}
+									disabled={isLoading || entrandoComGoogle}
+								>
+									{entrandoComGoogle ? <Loader2 className="h-4 w-4 animate-spin" /> : (
+										<img src="/google-login.png" alt="" width={18} height={18} className="shrink-0" />
+									)}
+									{entrandoComGoogle ? "Abrindo Google..." : "Continuar com Google"}
+								</Button>
+								<div className="flex items-center gap-3 text-xs text-muted-foreground">
+									<span className="h-px flex-1 bg-border" aria-hidden="true" /> ou com e-mail <span className="h-px flex-1 bg-border" aria-hidden="true" />
+								</div>
+							</div>
+						)}
 						<form onSubmit={handleSubmit} className="space-y-4">
 							<div className="space-y-2">
 								<Label htmlFor="email">E-mail</Label>
@@ -163,7 +236,7 @@ export default function ClientLogin() {
 								type="submit"
 								variant="premium"
 								className="w-full"
-								disabled={isLoading}
+								disabled={isLoading || entrandoComGoogle}
 							>
 								{isLoading ? "Entrando..." : "Entrar"}
 							</Button>

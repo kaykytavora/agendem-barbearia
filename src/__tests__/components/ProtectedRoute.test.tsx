@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom/vitest";
 import { BrowserRouter } from 'react-router-dom';
 import { vi } from 'vitest';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -148,5 +149,23 @@ describe('ProtectedRoute', () => {
     );
 
     expect(screen.getByTestId('protected-content')).toBeInTheDocument();
+  });
+
+  it.each(["admin", "funcionario"])("blocks staff role %s when the session came from Google", (role) => {
+    mockUseAuth.mockReturnValue({
+      user: { id: "123" },
+      session: { provider_token: "google-provider-token" },
+      role,
+      loading: false,
+    });
+
+    renderWithRouter(
+      <ProtectedRoute requiredRole="funcionario">
+        <TestComponent />
+      </ProtectedRoute>
+    );
+
+    expect(screen.queryByTestId("protected-content")).not.toBeInTheDocument();
+    expect(window.location.pathname).toBe("/client-login");
   });
 });

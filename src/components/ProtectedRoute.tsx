@@ -4,6 +4,7 @@ import { WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import PageLoader from "./PageLoader";
 import TrocarSenhaProvisoria from "./TrocarSenhaProvisoria";
+import { sessaoSocial } from "@/lib/login-google";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -11,7 +12,7 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { user, profile, role, loading, profileError } = useAuth(); // 'loading' espera pelo perfil
+  const { user, session, profile, role, loading, profileError } = useAuth(); // 'loading' espera pelo perfil
 
   if (loading) {
     return <PageLoader />;
@@ -19,6 +20,10 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if ((role === "admin" || role === "funcionario") && sessaoSocial(session)) {
+    return <Navigate to="/client-login" replace />;
   }
 
   // Perfil não carregou por falha de rede/servidor: não dá para saber o papel do usuário.
