@@ -12,6 +12,7 @@ import { formatarHora, horaNoDia, intervalosLivres, type Ocupacao } from "@/lib/
 import { PausaControl } from "@/components/dashboard/PausaControl";
 import { gerenciarAgendamento } from "@/integrations/supabase/api";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
+import { ResgatesSelosEquipe } from "@/components/dashboard/ResgatesSelosEquipe";
 
 interface AgendamentoDoDia {
   id: string;
@@ -282,6 +283,8 @@ export default function Inicio() {
             </Button>
           </section>
         )}
+
+        {barbeariaId && user && <ResgatesSelosEquipe barbeariaId={barbeariaId} userId={user.id} />}
 
         {isLoading ? (
           <div className="flex items-center justify-center py-20 text-muted-foreground">

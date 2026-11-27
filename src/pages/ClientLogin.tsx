@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Eye, EyeOff, Lock, Mail, ArrowLeft, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { mensagemErroLogin } from "@/lib/auth-errors";
@@ -22,18 +22,23 @@ export default function ClientLogin() {
 
 	const { signIn, user, role, loading: authLoading } = useAuth();
 	const navigate = useNavigate();
+	const { state } = useLocation();
+	const destino = typeof state?.voltarAoAgendamento === "string" &&
+		/^\/acompanhar-agendamento\/[0-9a-f-]{36}#[0-9a-f]{128}$/i.test(state.voltarAoAgendamento)
+		? state.voltarAoAgendamento
+		: "/client-panel";
 	const { toast } = useToast();
 
 	// Redireciona baseado na role do usuário
 	useEffect(() => {
 		if (!authLoading && user && role) {
 			if (role === 'cliente') {
-				navigate("/client-panel");
+				navigate(destino, { replace: true });
 			} else if (role === 'funcionario' || role === 'admin') {
 				navigate("/dashboard");
 			}
 		}
-	}, [user, authLoading, role, navigate]);
+	}, [user, authLoading, role, navigate, destino]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();

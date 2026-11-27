@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Store, Palette, Clock, Volume2 } from "lucide-react";
+import { Store, Palette, Clock, Volume2, Gift } from "lucide-react";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 import { SettingsContext, useBarbershopSettings } from "./settings/useBarbershopSettings";
 import { ProfileChecklist } from "./settings/ProfileChecklist";
@@ -9,12 +9,14 @@ import { ThemeTab } from "./settings/ThemeTab";
 import { HoursTab } from "./settings/HoursTab";
 import { NotificationsTab } from "./settings/NotificationsTab";
 import { DangerZoneCard } from "./settings/DangerZoneCard";
+import { SelosTab } from "./settings/SelosTab";
 
 const ABAS = [
   { value: "profile", label: "Perfil", icon: Store },
   { value: "theme", label: "Cor", icon: Palette },
   { value: "hours", label: "Horários", icon: Clock },
   { value: "notifications", label: "Avisos", icon: Volume2 },
+  { value: "selos", label: "Selos", icon: Gift },
 ];
 
 export default function Settings() {
@@ -62,7 +64,7 @@ export default function Settings() {
           <ProfileChecklist />
 
           <Tabs defaultValue="profile" className="space-y-4 sm:space-y-6">
-            <TabsList className="grid h-auto w-full grid-cols-4 rounded-full p-1">
+            <TabsList className="grid h-auto w-full grid-cols-3 rounded-2xl p-1 sm:grid-cols-5 sm:rounded-full">
               {ABAS.map(({ value, label, icon: Icon }) => (
                 <TabsTrigger key={value} value={value} className="flex items-center gap-1.5 rounded-full py-2 text-xs sm:text-sm">
                   <Icon className="h-4 w-4" aria-hidden="true" />
@@ -75,6 +77,7 @@ export default function Settings() {
             <ThemeTab />
             <HoursTab />
             <NotificationsTab />
+            <SelosTab barbeariaId={barbeariaId} />
           </Tabs>
 
           <DangerZoneCard />

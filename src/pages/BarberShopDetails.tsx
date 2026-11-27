@@ -45,6 +45,8 @@ import { BookingSummaryBar } from "@/components/booking/BookingSummaryBar";
 import { BookingConfirmationCard } from "@/components/booking/BookingConfirmationCard";
 import { ShopHeroCard } from "@/components/barbershop/ShopHeroCard";
 import { ShopInfoAside } from "@/components/barbershop/ShopInfoAside";
+import { ProgramaSelosPublico } from "@/components/barbershop/ProgramaSelosPublico";
+import { caminhoAgendamento, createAppointment } from "@/integrations/supabase/api";
 
 
 type Servico = Database['public']['Tables']['servicos']['Row'];
@@ -313,7 +315,7 @@ const BarberShopDetails = () => {
       appointmentDateTime.setSeconds(0, 0); // Zera segundos e milissegundos
 
       // 2. Prepare the data for insertion, cleaning the phone number
-      const bookingData: Database['public']['Tables']['agendamentos']['Insert'] = {
+      const bookingData = {
         barbearia_id: barbershop.id,
         servico_id: selectedService,
         funcionario_id: selectedBarber,
@@ -321,39 +323,19 @@ const BarberShopDetails = () => {
         cliente_nome: safeName,
         cliente_telefone: cleanedPhone, // Salva apenas os dígitos
         cliente_email: safeEmail || null,
-        status: 'confirmado' as const, // Auto-confirmado, sistema manual pausado
+        avaliado: false,
         // Sempre enviar user_id explicitamente - null para anônimos, user.id para logados
         user_id: isClientLoggedIn && user ? user.id : null,
         // Adicionar customer_id se disponível (usuário não logado com OTP verificado)
         ...(customerId && { customer_id: customerId })
       };
 
-      // 3. Insert into Supabase
-
-      let data, error;
-
-      if (!isClientLoggedIn) {
-        // Visitantes podem criar agendamentos, mas não ler a linha criada; por isso o id nasce aqui
-        const novoAgendamento = { ...bookingData, id: crypto.randomUUID() };
-        const result = await supabase.from('agendamentos').insert(novoAgendamento);
-        data = novoAgendamento;
-        error = result.error;
-      } else {
-        // Para usuários logados, usar método normal
-        const result = await supabase.from('agendamentos').insert(bookingData).select('*').single();
-        data = result.data;
-        error = result.error;
-      }
-
-      if (error) {
-        console.error("Erro ao salvar agendamento:", error);
-        console.error("Dados enviados:", bookingData);
-        if (error.message?.includes('HORARIO_OCUPADO')) {
+      const data = await createAppointment(bookingData, { carregarDetalhes: false }).catch(async (error: unknown) => {
+        if (error instanceof Error && error.message.startsWith("Esse horário já está reservado")) {
           await refetchBarbershop();
-          throw new Error("Esse horário acabou de ser reservado. Escolha outro.");
         }
-        throw new Error("Não foi possível salvar seu agendamento. Verifique os dados e tente novamente.");
-      }
+        throw error;
+      });
 
       // Para usuários anônimos, não tentamos buscar dados completos via RLS
       // pois eles não têm permissão de leitura
@@ -469,7 +451,6 @@ const BarberShopDetails = () => {
 
   // Check if user is anonymous and didn't create account
   // Usuário anônimo é aquele que não estava logado E não criou conta durante o processo
-  const isAnonymousUser = !isClientLoggedIn && !clientData.createAccount;
 
   // Helper functions for social media links
   const formatWhatsAppLink = (phone: string, barbershopName: string) =>
@@ -622,6 +603,8 @@ const BarberShopDetails = () => {
           stats={stats}
           whatsAppHref={barbershop.telefone ? formatWhatsAppLink(barbershop.telefone, barbershop.nome) : undefined}
         />
+
+        <ProgramaSelosPublico barbeariaId={barbershop.id} servicos={barbershop.servicos} />
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
           {/* Agendamento */}
@@ -788,8 +771,11 @@ const BarberShopDetails = () => {
                 canDownload={!!lastCreatedAppointment}
                 onDownload={handleDownloadReceipt}
                 panelAction={
-                  isAnonymousUser
-                    ? undefined
+                  !isClientLoggedIn
+                    ? lastCreatedAppointment?.booking_token ? {
+                        label: 'Acompanhar meu agendamento',
+                        onClick: () => navigate(caminhoAgendamento(lastCreatedAppointment.id, lastCreatedAppointment.booking_token)),
+                      } : undefined
                     : {
                         label: isStaff ? 'Voltar para o painel' : 'Ver meus agendamentos',
                         onClick: () => navigate(isStaff ? '/dashboard' : '/meus-agendamentos'),

@@ -33,6 +33,7 @@ import { FeedbackModal } from "@/components/FeedbackModal";
 import { useResponsive } from "@/hooks/use-mobile";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { AcoesAgendamento } from "@/components/AcoesAgendamento";
+import { CartoesSelos } from "@/components/CartoesSelos";
 
 interface PendingFeedback {
 	id: string;
@@ -239,6 +240,7 @@ const ClientPanel = () => {
 		onUpdate: () => {
 			queryClient.invalidateQueries({ queryKey: ['appointments', 'upcoming', profileUserId] });
 			queryClient.invalidateQueries({ queryKey: ['appointments', 'past', profileUserId] });
+			void queryClient.invalidateQueries({ queryKey: ["cartoes-selos", profileUserId] });
 		},
 		enabled: !!profileUserId,
 		delay: 1500
@@ -570,6 +572,7 @@ const ClientPanel = () => {
 							</CardContent>
 						</Card>
 
+						{profileUserId && <CartoesSelos userId={profileUserId} />}
 						{/* Histórico */}
 						<Card className="border-border/50 bg-card/50 backdrop-blur-sm">
 							<CardHeader className={isMobile ? 'p-4' : ''}>

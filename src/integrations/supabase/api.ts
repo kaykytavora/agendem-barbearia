@@ -37,7 +37,7 @@ const generateSHA256Hash = async (token: string): Promise<string> => {
  */
 export const createAppointment = async (
   appointmentData: Pick<Agendamento, "barbearia_id" | "servico_id" | "funcionario_id" | "data_hora" |
-    "cliente_nome" | "cliente_telefone" | "cliente_email" | "user_id" | "avaliado">,
+    "cliente_nome" | "cliente_telefone" | "cliente_email" | "user_id" | "avaliado"> & { customer_id?: string },
   options?: { carregarDetalhes?: boolean },
 ) => {
   // Tenta obter a sessão do usuário de forma silenciosa.
@@ -61,6 +61,7 @@ export const createAppointment = async (
     cliente_email: appointmentData.cliente_email,
     data_hora: appointmentData.data_hora,
     booking_token_hash: bookingTokenHash,
+    ...(appointmentData.customer_id && { customer_id: appointmentData.customer_id }),
     status: 'pendente' as const,
   };
 
@@ -127,7 +128,9 @@ export async function renovarLinkAgendamento(id: string) {
 export async function consultarAgendamentoPorLink(id: string, token: string) {
   const { data, error } = await supabase.rpc("consultar_agendamento_por_link", { p_id: id, p_token: token });
   if (error) throw new Error(error.message);
-  return data as (AcompanhamentoAgendamento & { barbearia: string; servico: string; profissional: string | null }) | null;
+  return data as (AcompanhamentoAgendamento & {
+    barbearia: string; servico: string; profissional: string | null; selo_disponivel?: boolean;
+  }) | null;
 }
 
 /**

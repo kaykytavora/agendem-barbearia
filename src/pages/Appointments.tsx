@@ -468,7 +468,7 @@ export default function Appointments() {
 																</Button>
 															)}
 															<AcoesAgendamento agendamento={appointment} lado="equipe" />
-															{!appointment.user_id && appointment.status !== "finalizado" && (
+															{!appointment.user_id && (
 																<LinkClienteAgendamento id={appointment.id} />
 															)}
 															{appointment.status === "confirmado" && !appointment.cancelamento_solicitado_por && (
