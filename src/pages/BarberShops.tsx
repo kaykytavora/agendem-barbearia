@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AIAssistantButton } from "@/components/ai/AIAssistantButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,105 +41,55 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { resumirHorarios } from "@/lib/horarios";
 import { useBarbershopsList } from "@/hooks/useBarbershopsList";
+import { chaveCidade, cidadeDaLocalizacao, correspondeBusca } from "@/lib/localizacao-barbearias";
 
 const BarberShops = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { role, loading: roleLoading } = useUserRole();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCity, setSelectedCity] = useState("all");
+  const [selectedCity, setSelectedCity] = useState("");
   const { data: lista, isLoading: loading, isError: loadError, refetch } = useBarbershopsList();
   const allBarberShops = lista?.barbearias ?? [];
   const cities = lista?.cidades ?? [];
   const allCategories = lista?.categorias ?? [];
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState("name_asc");
-  const [locationFilter, setLocationFilter] = useState<"all" | "nearby">("all");
-  const [maxDistance, setMaxDistance] = useState(10); // km
+  const [locationFilter, setLocationFilter] = useState(false);
   
   // Hook de geolocalização
   const { 
-    latitude, 
-    longitude, 
     city: detectedCity,
-    state: detectedState,
     error: locationError, 
     loading: locationLoading, 
     geocodingLoading,
-    getCurrentLocation, 
-    calculateDistance 
+    getCurrentLocation,
   } = useGeolocation();
+  const buscandoLocalizacao = locationLoading || geocodingLoading;
+  const cidadeDetectada = locationFilter ? cidadeDaLocalizacao(detectedCity, cities) : undefined;
+  const cidadeSelecionada = cidadeDetectada?.chave ?? (cities.some((cidade) => cidade.chave === selectedCity) ? selectedCity : "");
+  const temFiltros = Boolean(searchTerm.trim() || cidadeSelecionada || selectedCategories.length);
 
   const handleLogout = async () => {
 		await signOut();
 		navigate("/");
 	};
 
-  // Detectar localização automaticamente ao carregar a página
-  useEffect(() => {
-    const autoDetectLocation = async () => {
-      try {
-        await getCurrentLocation();
-      } catch (error) {
-        console.error('Erro ao detectar localização automaticamente:', error);
-      }
-    };
-
-    autoDetectLocation();
-  }, []);
-
-  // Atualizar filtro de cidade quando a cidade for detectada
-  useEffect(() => {
-    if (detectedCity && selectedCity === "all") {
-      setSelectedCity(detectedCity);
-    }
-  }, [detectedCity]);
-
-
-
   const filteredShops = allBarberShops
     .filter(shop => {
-      const shopName = shop.nome || "";
-      const shopCity = shop.cidade || "";
-      const shopAddress = shop.endereco || "";
-
-      const matchesSearch = shopName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          `${shopAddress}, ${shopCity}`.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCity = selectedCity === "all" || shopCity === selectedCity;
+      const matchesSearch = correspondeBusca(shop, searchTerm);
+      const matchesCity = !cidadeSelecionada || chaveCidade(shop.cidade) === cidadeSelecionada;
       
       const matchesCategories = selectedCategories.length === 0 || 
                               selectedCategories.every(categoryId => 
                                 shop.servicos.some(s => s.categoria_id === categoryId || s.categoria_id_2 === categoryId)
                               );
 
-      // Filtro por localização
-      let matchesLocation = true;
-      if (locationFilter === "nearby" && latitude && longitude) {
-        // Para este exemplo, vou usar coordenadas fictícias para as barbearias
-        // Em um cenário real, você teria latitude e longitude armazenadas no banco
-        const shopLat = -23.5505 + (Math.random() - 0.5) * 0.1; // São Paulo como base
-        const shopLon = -46.6333 + (Math.random() - 0.5) * 0.1;
-        const distance = calculateDistance(shopLat, shopLon);
-        matchesLocation = distance !== null && distance <= maxDistance;
-      }
-
-      return matchesSearch && matchesCity && matchesCategories && matchesLocation;
+      return matchesSearch && matchesCity && matchesCategories;
     })
     .sort((a, b) => {
-      if (sortBy === 'name_asc') {
-        return (a.nome || "").localeCompare(b.nome || "");
-      }
-      if (sortBy === 'name_desc') {
-        return (b.nome || "").localeCompare(a.nome || "");
-      }
-      if (sortBy === 'distance' && latitude && longitude) {
-        // Coordenadas fictícias para São Paulo (centro)
-        const distanceA = calculateDistance(-23.5505, -46.6333);
-        const distanceB = calculateDistance(-23.5505, -46.6333);
-        return (distanceA || 0) - (distanceB || 0);
-      }
-      // Adicionar mais lógicas de ordenação aqui (ex: rating)
-      return 0;
+      const ordem = a.nome.localeCompare(b.nome, "pt-BR");
+      return sortBy === "name_desc" ? -ordem : ordem;
     });
 
 
@@ -247,48 +197,24 @@ const BarberShops = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Auto-location detection banner */}
-        {(locationLoading || geocodingLoading) && (
-          <div className="mb-4">
-            <Alert>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <AlertDescription>
-                {locationLoading ? 'Detectando sua localização...' : 'Identificando sua cidade...'}
-              </AlertDescription>
-            </Alert>
-          </div>
-        )}
-
-        {detectedCity && selectedCity === detectedCity && (
-          <div className="mb-4">
-            <Alert className="border-green-200 bg-green-50 dark:bg-green-900/20">
-              <Navigation className="h-4 w-4 text-green-600 dark:text-green-400" />
-              <AlertDescription className="text-green-800 dark:text-green-200">
-                Exibindo barbearias em <span className="font-semibold">{detectedCity}</span>
-                {detectedState && `, ${detectedState}`}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedCity("all")}
-                  className="ml-2 h-6 px-2 text-xs"
-                >
-                  Ver todas
+        {locationFilter && (
+          <Alert className="mb-4">
+            {buscandoLocalizacao ? <Loader2 className="h-4 w-4 animate-spin" /> : cidadeDetectada ? (
+              <Navigation className="h-4 w-4" />
+            ) : <AlertCircle className="h-4 w-4" />}
+            <AlertDescription className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              {buscandoLocalizacao ? "Identificando sua cidade..." : cidadeDetectada ? (
+                <span>Exibindo barbearias em <strong>{cidadeDetectada.nome}</strong></span>
+              ) : (
+                <span>{locationError ?? "Ainda não há barbearias cadastradas na cidade detectada."} A lista mostra todas as cidades.</span>
+              )}
+              {!buscandoLocalizacao && (
+                <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setLocationFilter(false)}>
+                  {cidadeDetectada ? "Ver todas" : "Fechar aviso"}
                 </Button>
-              </AlertDescription>
-            </Alert>
-          </div>
-        )}
-
-        {locationError && locationError.includes('negada') && (
-          <div className="mb-4">
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Para ver barbearias próximas à você, permita acesso à localização.
-                Você ainda pode navegar por todas as barbearias disponíveis.
-              </AlertDescription>
-            </Alert>
-          </div>
+              )}
+            </AlertDescription>
+          </Alert>
         )}
 
         {/* Filters */}
@@ -297,35 +223,39 @@ const BarberShops = () => {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
-                placeholder="Buscar por nome ou localização..."
+                placeholder="Buscar por nome, bairro, cidade ou CEP"
+                aria-label="Buscar por nome, bairro, cidade ou CEP"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                aria-label="Filtrar por cidade"
+                value={cidadeSelecionada}
+                onChange={(event) => {
+                  setSelectedCity(event.target.value);
+                  setLocationFilter(false);
+                }}
+                className="h-9 max-w-full rounded-full border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">Todas as cidades</option>
+                {cities.map((cidade) => <option key={cidade.chave} value={cidade.chave}>{cidade.nome}</option>)}
+              </select>
               <Button
-                variant={locationFilter === "nearby" ? "default" : "outline"}
+                variant={cidadeDetectada ? "default" : "outline"}
                 size="sm"
                 onClick={() => {
-                  if (locationFilter === "nearby") {
-                    setLocationFilter("all");
-                  } else {
-                    setLocationFilter("nearby");
-                    if (!latitude && !longitude && !locationLoading) {
-                      getCurrentLocation();
-                    }
-                  }
+                  setSelectedCity("");
+                  setLocationFilter(true);
+                  void getCurrentLocation();
                 }}
-                disabled={locationLoading}
-                className="flex items-center gap-2"
+                disabled={buscandoLocalizacao}
+                className="gap-2"
               >
-                {locationLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Navigation className="w-4 h-4" />
-                )}
-                {locationFilter === "nearby" ? "Perto de mim" : "Usar localização"}
+                <Navigation className="h-4 w-4" />
+                Usar localização
               </Button>
               <Sheet>
                 <SheetTrigger asChild>
@@ -339,72 +269,6 @@ const BarberShops = () => {
                     <SheetTitle>Filtros Avançados</SheetTitle>
                   </SheetHeader>
                   <div className="py-4 space-y-6">
-                    {/* Filtro por Localização */}
-                    {locationError && (
-                      <Alert>
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription>
-                          {locationError}
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                    
-                    {locationFilter === "nearby" && (
-                      <div className="space-y-3">
-                        <Label className="font-semibold">Distância Máxima</Label>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">
-                              {maxDistance} km
-                            </span>
-                          </div>
-                          <input
-                            type="range"
-                            min="1"
-                            max="50"
-                            value={maxDistance}
-                            onChange={(e) => setMaxDistance(Number(e.target.value))}
-                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                          />
-                          <div className="flex justify-between text-xs text-muted-foreground">
-                            <span>1 km</span>
-                            <span>50 km</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Filtrar por Cidade */}
-                    <div className="space-y-3">
-                      <Label className="font-semibold">Cidade</Label>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={selectedCity === 'all' ? '' : selectedCity}
-                          onChange={(e) => setSelectedCity(e.target.value || 'all')}
-                          placeholder={detectedCity ? `Detectado: ${detectedCity}` : "Digite ou selecione uma cidade"}
-                          list="cities-list"
-                          className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                        />
-                        <datalist id="cities-list">
-                          <option value="">Todas as cidades</option>
-                          {cities.filter(city => city !== 'all').map(city => (
-                            <option key={city} value={city}>
-                              {city}
-                            </option>
-                          ))}
-                        </datalist>
-                      </div>
-                      {selectedCity && selectedCity !== 'all' && (
-                        <button
-                          onClick={() => setSelectedCity('all')}
-                          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-                        >
-                          <span>×</span> Limpar filtro
-                        </button>
-                      )}
-                    </div>
-
                     {/* Ordenar por */}
                     <div className="space-y-3">
                       <Label className="font-semibold">Ordenar por</Label>
@@ -417,12 +281,6 @@ const BarberShops = () => {
                           <RadioGroupItem value="name_desc" id="name_desc" />
                           <Label htmlFor="name_desc">Nome (Z-A)</Label>
                         </div>
-                        {locationFilter === "nearby" && latitude && longitude && (
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="distance" id="distance" />
-                            <Label htmlFor="distance">Distância</Label>
-                          </div>
-                        )}
                       </RadioGroup>
                     </div>
 
@@ -481,7 +339,7 @@ const BarberShops = () => {
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <MapPin className="w-4 h-4" />
-                    {shop.cidade}
+                    {shop.cidade || "Cidade não informada"}
                   </div>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -555,7 +413,7 @@ const BarberShops = () => {
                       <h3 className="font-semibold text-base truncate">{shop.nome}</h3>
                       <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
                         <MapPin className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate">{shop.cidade}</span>
+                        <span className="truncate">{shop.cidade || "Cidade não informada"}</span>
                       </div>
                     </div>
                     <Badge variant="secondary" className="bg-background/90 text-foreground ml-2 flex-shrink-0">
@@ -594,8 +452,20 @@ const BarberShops = () => {
             </Button>
           </div>
         ) : filteredShops.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Nenhuma barbearia encontrada com os filtros selecionados.</p>
+          <div className="space-y-3 text-center py-12">
+            <p className="text-muted-foreground">
+              {temFiltros ? "Nenhuma barbearia encontrada com esses filtros." : "Nenhuma barbearia disponível no momento."}
+            </p>
+            {temFiltros && (
+              <Button variant="outline" onClick={() => {
+                setSearchTerm("");
+                setSelectedCity("");
+                setLocationFilter(false);
+                setSelectedCategories([]);
+              }}>
+                Limpar filtros
+              </Button>
+            )}
           </div>
         )}
       </div>
