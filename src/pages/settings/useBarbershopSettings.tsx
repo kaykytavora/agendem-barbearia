@@ -1,3 +1,5 @@
+import { cidadeUtil } from "@/lib/localizacao-barbearias";
+import { consultarCep } from "@/services/cep";
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -184,6 +186,12 @@ export function useBarbershopSettings() {
     setSaving(true);
 
     try {
+      const cepLimpo = cep.replace(/\D/g, "");
+      const cidade = cidadeUtil(barbershop.cidade)
+        ? barbershop.cidade.trim()
+        : (await consultarCep(cepLimpo).catch(() => null))?.localidade ?? "";
+      if (!cidadeUtil(cidade)) throw new Error("Informe o nome da cidade ou um CEP válido.");
+
       // Só os campos desta aba: logo, galeria e cor são salvos pelas próprias ações e não podem ser sobrescritos aqui
       const { error } = await supabase
         .from('barbearias')
@@ -192,14 +200,15 @@ export function useBarbershopSettings() {
           descricao: barbershop.descricao.trim() || null,
           telefone: (phone || '').replace(/\D/g, '') || null,
           email_contato: barbershop.email_contato.trim() || null,
-          cep: cep.replace(/\D/g, '') || null,
+          cep: cepLimpo || null,
           endereco: barbershop.endereco.trim() || null,
           bairro: barbershop.bairro.trim() || null,
-          cidade: barbershop.cidade.trim(),
+          cidade,
         })
         .eq('id', barbeariaId);
 
       if (error) throw error;
+      setBarbershop((prev) => ({ ...prev, cidade }));
       atualizarPaginaPublica();
 
       toast({
@@ -407,15 +416,8 @@ export function useBarbershopSettings() {
 
     setIsFetchingCep(true);
     try {
-      const response = await fetch(`https://viacep.com.br/ws/${cleanedCep}/json/`);
-      if (!response.ok) {
-        throw new Error('CEP não encontrado');
-      }
-      const data = await response.json();
-
-      if (data.erro) {
-        throw new Error('CEP inválido');
-      }
+      const data = await consultarCep(cleanedCep);
+      if (!data) throw new Error("CEP não encontrado");
 
       setBarbershop(prev => ({
         ...prev,

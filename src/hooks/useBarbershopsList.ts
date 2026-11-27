@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import type { HorarioDia } from "@/lib/horarios";
+import { cidadesDisponiveis, cidadeUtil } from "@/lib/localizacao-barbearias";
+import { consultarCep } from "@/services/cep";
 
 export type BarbershopListItem = Database["public"]["Tables"]["barbearias"]["Row"] & {
   servicos: { categoria_id: string | null; categoria_id_2?: string | null }[]; // IDs das categorias para filtro
@@ -22,12 +24,17 @@ async function carregarBarbearias() {
 
   const barbearias = barbeariasRes.data ?? [];
   const ids = barbearias.map((b) => b.id);
+  const cepsSemCidade = [...new Set(barbearias
+    .filter((barbearia) => !cidadeUtil(barbearia.cidade))
+    .map((barbearia) => barbearia.cep?.replace(/\D/g, "") ?? "")
+    .filter((cep) => cep.length === 8))];
 
   // Avaliações e horários de todas as barbearias de uma vez (antes era uma consulta por barbearia).
   // horarios_funcionamento não tem FK para barbearias, então não dá para embutir no select acima.
-  const [avaliacoesRes, horariosRes] = await Promise.all([
+  const [avaliacoesRes, horariosRes, enderecos] = await Promise.all([
     supabase.from("feedbacks").select("barbearia_id, rating").in("barbearia_id", ids).eq("status", "concluido").not("rating", "is", null),
     supabase.from("horarios_funcionamento").select("barbearia_id, dia_semana, fechado, hora_abre, hora_fecha").in("barbearia_id", ids),
+    Promise.all(cepsSemCidade.map(async (cep) => [cep, await consultarCep(cep).catch(() => null)] as const)),
   ]);
   // Sem avaliações ou horários a listagem ainda funciona, então esses erros não derrubam a página
   if (avaliacoesRes.error) console.error("Erro ao buscar avaliações:", avaliacoesRes.error);
@@ -39,11 +46,15 @@ async function carregarBarbearias() {
     notas.set(a.barbearia_id, [...(notas.get(a.barbearia_id) ?? []), a.rating]);
   }
 
+  const enderecosPorCep = new Map(enderecos);
   const lista = barbearias.map((b) => {
     const n = notas.get(b.id) ?? [];
     const media = n.length ? n.reduce((t, x) => t + x, 0) / n.length : 0;
+    const enderecoCep = enderecosPorCep.get(b.cep?.replace(/\D/g, "") ?? "");
     return {
       ...b,
+      cidade: cidadeUtil(b.cidade) ? b.cidade : enderecoCep?.localidade ?? "",
+      bairro: b.bairro?.trim() || enderecoCep?.bairro || null,
       rating: Math.round(media * 10) / 10,
       horarios_funcionamento: (horariosRes.data ?? []).filter((h) => h.barbearia_id === b.id),
     };
@@ -52,7 +63,7 @@ async function carregarBarbearias() {
   return {
     barbearias: lista,
     categorias: (categoriasRes.data ?? []) as Category[],
-    cidades: [...new Set(barbearias.map((b) => b.cidade).filter(Boolean) as string[])],
+    cidades: cidadesDisponiveis(lista.map((barbearia) => barbearia.cidade)),
   };
 }
 
