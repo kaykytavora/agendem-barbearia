@@ -671,6 +671,7 @@ export type Database = {
           id: string
           name: string
           phone: string | null
+          primeiros_passos: Json
           receber_lembretes_email: boolean | null
           receber_lembretes_sms: boolean | null
           role: Database["public"]["Enums"]["user_role"]
@@ -685,6 +686,7 @@ export type Database = {
           id?: string
           name: string
           phone?: string | null
+          primeiros_passos?: Json
           receber_lembretes_email?: boolean | null
           receber_lembretes_sms?: boolean | null
           role?: Database["public"]["Enums"]["user_role"]
@@ -699,6 +701,7 @@ export type Database = {
           id?: string
           name?: string
           phone?: string | null
+          primeiros_passos?: Json
           receber_lembretes_email?: boolean | null
           receber_lembretes_sms?: boolean | null
           role?: Database["public"]["Enums"]["user_role"]

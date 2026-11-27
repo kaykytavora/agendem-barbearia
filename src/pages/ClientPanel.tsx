@@ -15,8 +15,10 @@ import {
 	Settings,
 	RefreshCw,
 	Scissors,
+	HelpCircle,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { TourCliente } from "@/components/onboarding/TourCliente";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -133,6 +135,7 @@ const ClientPanel = () => {
 	const { toast } = useToast();
 	const { isMobile } = useResponsive();
 	const [selectedFeedback, setSelectedFeedback] = useState<PendingFeedback | null>(null);
+	const [tourAberto, setTourAberto] = useState(false);
 
 	// Usa o user_id do perfil como a chave para as queries.
 	// O perfil é a nossa "fonte da verdade" para o ID que vincula os dados.
@@ -731,11 +734,20 @@ const ClientPanel = () => {
 									<MapPin className={`${isMobile ? 'w-3 h-3 mr-2' : 'w-4 h-4 mr-2'}`} />
 									Encontrar Barbearias
 								</Button>
+								<Button
+									variant="ghost"
+									className={`w-full ${isMobile ? 'text-sm py-2' : ''}`}
+									onClick={() => setTourAberto(true)}
+								>
+									<HelpCircle className={`${isMobile ? 'w-3 h-3 mr-2' : 'w-4 h-4 mr-2'}`} />
+									Como funciona
+								</Button>
 							</CardContent>
 						</Card>
 					</div>
 				</div>
 			</div>
+			<TourCliente aberto={tourAberto} onFechar={() => setTourAberto(false)} />
 			{selectedFeedback && (
 				<FeedbackModal
 					isOpen={!!selectedFeedback}

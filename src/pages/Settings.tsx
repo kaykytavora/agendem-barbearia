@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Store, Palette, Clock, Volume2, Gift } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 import { SettingsContext, useBarbershopSettings } from "./settings/useBarbershopSettings";
 import { ProfileChecklist } from "./settings/ProfileChecklist";
@@ -22,6 +23,10 @@ const ABAS = [
 export default function Settings() {
   const settings = useBarbershopSettings();
   const { loading, barbeariaId } = settings;
+  // ?aba=hours abre direto na aba de horários (link dos primeiros passos)
+  const [params] = useSearchParams();
+  const aba = params.get("aba");
+  const abaInicial = ABAS.some((a) => a.value === aba) ? aba! : "profile";
 
   if (loading) {
     return (
@@ -63,7 +68,7 @@ export default function Settings() {
 
           <ProfileChecklist />
 
-          <Tabs defaultValue="profile" className="space-y-4 sm:space-y-6">
+          <Tabs defaultValue={abaInicial} className="space-y-4 sm:space-y-6">
             <TabsList className="grid h-auto w-full grid-cols-3 rounded-2xl p-1 sm:grid-cols-5 sm:rounded-full">
               {ABAS.map(({ value, label, icon: Icon }) => (
                 <TabsTrigger key={value} value={value} className="flex items-center gap-1.5 rounded-full py-2 text-xs sm:text-sm">

@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
+import { ChecklistAdmin } from "@/components/onboarding/ChecklistAdmin";
 import { Link, useNavigate } from "react-router-dom";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useResponsive, useResponsiveClasses } from "@/hooks/use-mobile";
@@ -89,7 +90,7 @@ const fetchBarbeariaData = async (userId: string) => {
 };
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, barbeariaId } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { role } = useUserRole();
@@ -599,6 +600,8 @@ export default function Dashboard() {
             </Link>
           </div>
         </div>
+
+        {role === 'admin' && barbeariaId && <ChecklistAdmin barbeariaId={barbeariaId} />}
 
         {/* Stats Grid */}
         <div className={`${isMobile ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'}`}>

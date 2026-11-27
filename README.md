@@ -230,6 +230,16 @@ npm run dev
 
 Acesse `http://localhost:5173` 🎉
 
+### Login do cliente com Google
+
+1. Aplique `database/migrations/011_login_google_cliente.sql` no projeto Supabase.
+2. Em **Authentication → Hooks**, configure **Custom Access Token** para usar a função PostgreSQL `public.restringir_login_social_equipe`. Se o projeto já usa um hook desse tipo, incorpore a regra ao hook existente.
+3. Crie um cliente OAuth do tipo **Aplicativo da Web** no Google Cloud. Use como URI de redirecionamento a URL de callback exibida pelo provedor Google no Supabase.
+4. Em **Authentication → URL Configuration**, permita a URL do site com o caminho `/client-login`. Para testar localmente, permita também `http://localhost:5173/client-login`.
+5. Em **Authentication → Sign In / Providers → Google**, insira o Client ID e o Client Secret e ative o provedor. O botão passa a aparecer na tela de login do cliente.
+
+[Configurar o provedor Google](https://supabase.com/docs/guides/auth/social-sign-in/auth-google) · [Configurar o Auth Hook](https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook)
+
 ---
 
 ## 🧪 Testes
