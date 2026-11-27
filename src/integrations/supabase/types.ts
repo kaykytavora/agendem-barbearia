@@ -518,6 +518,41 @@ export type Database = {
           },
         ]
       }
+      despesas_barbearia: {
+        Row: {
+          barbearia_id: string
+          created_at: string
+          data: string
+          descricao: string
+          id: string
+          valor: number
+        }
+        Insert: {
+          barbearia_id: string
+          created_at?: string
+          data?: string
+          descricao: string
+          id?: string
+          valor: number
+        }
+        Update: {
+          barbearia_id?: string
+          created_at?: string
+          data?: string
+          descricao?: string
+          id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "despesas_barbearia_barbearia_id_fkey"
+            columns: ["barbearia_id"]
+            isOneToOne: false
+            referencedRelation: "barbearias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       funcionarios: {
         Row: {
           barbearia_id: string

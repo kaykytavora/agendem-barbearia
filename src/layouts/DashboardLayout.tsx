@@ -8,6 +8,8 @@ import { useTheme } from "@/hooks/useTheme";
 import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Notifications } from "@/components/notifications/Notifications";
+import { AssistenteBarbearia } from "@/components/dashboard/AssistenteBarbearia";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -16,6 +18,7 @@ interface DashboardLayoutProps {
 function DashboardLayoutContent({ children }: DashboardLayoutProps) {
   const { theme, setTheme, isClientRoute } = useTheme();
   const { openMobile, setOpenMobile } = useSidebar();
+  const { user, role, barbeariaId } = useAuth();
 
   // Força tema escuro para dashboard se não estiver em rota de cliente
   useEffect(() => {
@@ -76,6 +79,9 @@ function DashboardLayoutContent({ children }: DashboardLayoutProps) {
 
       {/* Mobile Bottom Navigation */}
       <MobileBottomNav />
+      {barbeariaId && (role === "admin" || role === "funcionario") && (
+        <AssistenteBarbearia key={`${user?.id}:${barbeariaId}:${role}`} barbeariaId={barbeariaId} admin={role === "admin"} />
+      )}
     </div>
   );
 }

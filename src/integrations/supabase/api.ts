@@ -30,7 +30,8 @@ const generateSHA256Hash = async (token: string): Promise<string> => {
  * @throws Se ocorrer um erro na criação.
  */
 export const createAppointment = async (
-  appointmentData: Omit<Agendamento, 'id' | 'created_at' | 'updated_at' | 'status' | 'booking_token_hash' | 'customer_id' | 'origem'> & { user_id: string | null }
+  appointmentData: Omit<Agendamento, 'id' | 'created_at' | 'updated_at' | 'status' | 'booking_token_hash' | 'customer_id' | 'origem'> & { user_id: string | null },
+  options?: { carregarDetalhes?: boolean },
 ) => {
   // Tenta obter a sessão do usuário de forma silenciosa.
   const { data: { session } } = await supabase.auth.getSession();
@@ -71,10 +72,13 @@ export const createAppointment = async (
     if (error.message.includes('HORARIO_OCUPADO')) {
       throw new Error('Esse horário já está reservado para este profissional. Escolha outro.');
     }
+    if (error.message.includes('LIMITE_AGENDAMENTOS_ANONIMOS')) {
+      throw new Error('Este telefone atingiu o limite de agendamentos ativos.');
+    }
     throw new Error(`Não foi possível criar o agendamento: ${error.message}`);
   }
 
-  if (!session) {
+  if (!session || options?.carregarDetalhes === false) {
     return { ...newAppointment, booking_token: bookingToken };
   }
 
