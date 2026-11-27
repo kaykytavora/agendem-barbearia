@@ -32,6 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 import { FeedbackModal } from "@/components/FeedbackModal";
 import { useResponsive } from "@/hooks/use-mobile";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
+import { AcoesAgendamento } from "@/components/AcoesAgendamento";
 
 interface PendingFeedback {
 	id: string;
@@ -548,6 +549,7 @@ const ClientPanel = () => {
 														</div>
 													)}
 												</div>
+										<div className="mt-3"><AcoesAgendamento agendamento={ag} lado="cliente" /></div>
 											</div>
 										))}
 										{(upcomingAppointments?.length ?? 0) > 3 && (
@@ -598,6 +600,9 @@ const ClientPanel = () => {
 														{getStatusBadge(ag.status)}
 													</div>
 												</div>
+										{ag.status === "cancelado" && (
+											<div className="mt-2"><AcoesAgendamento agendamento={ag} lado="cliente" /></div>
+										)}
 											</div>
 										))}
 										{(pastAppointments?.length ?? 0) > 4 && (

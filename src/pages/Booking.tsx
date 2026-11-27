@@ -19,7 +19,7 @@ import {
   Loader2
 } from "lucide-react";
 import { Database } from "@/integrations/supabase/types";
-import { createAppointment } from "@/integrations/supabase/api";
+import { caminhoAgendamento, createAppointment } from "@/integrations/supabase/api";
 
 interface BookingData {
   barberShop: Database['public']['Tables']['barbearias']['Row'];
@@ -127,11 +127,11 @@ const Booking = () => {
         avaliado: false,
       };
 
-      await createAppointment(appointmentData);
+      const agendamento = await createAppointment(appointmentData, { carregarDetalhes: false });
 
       toast({
-        title: "Agendamento confirmado!",
-        description: "Seu horário foi reservado com sucesso.",
+        title: "Horário reservado",
+        description: "Acompanhe a confirmação da barbearia.",
         action: <CheckCircle className="text-green-500" />,
       });
 
@@ -139,7 +139,7 @@ const Booking = () => {
       if (user) {
         navigate('/client-panel');
       } else {
-        navigate('/barbearias');
+        navigate(caminhoAgendamento(agendamento.id, agendamento.booking_token), { replace: true });
       }
 
     } catch (error) {

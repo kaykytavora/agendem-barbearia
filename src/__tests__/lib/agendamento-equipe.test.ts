@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { agendarPeloChat } from "@/lib/agendamento-equipe";
-import { interpretarAgendamentoSimples } from "@/lib/agendamento-assistido";
+import { interpretarAgendamentoSimples, interpretarCancelamentoSimples } from "@/lib/agendamento-assistido";
 
 const mocks = vi.hoisted(() => ({
   from: vi.fn(),
@@ -9,7 +9,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: mocks.from, rpc: mocks.rpc } }));
-vi.mock("@/integrations/supabase/api", () => ({ createAppointment: mocks.createAppointment }));
+vi.mock("@/integrations/supabase/api", () => ({
+  createAppointment: mocks.createAppointment,
+  caminhoAgendamento: (id: string, token: string) => `/acompanhar-agendamento/${id}#${token}`,
+}));
 
 describe("agendamento pelo chat da equipe", () => {
   const comando = "agende um corte de cabelo para kayky com daniel as 15";
@@ -26,6 +29,7 @@ describe("agendamento pelo chat da equipe", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.createAppointment.mockResolvedValue({ id: "agendamento", booking_token: "token" });
     registros = { ...dados };
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date(2026, 10, 27, 14, 48));
@@ -112,5 +116,19 @@ describe("agendamento pelo chat da equipe", () => {
     const pedido = interpretarAgendamentoSimples(comandoCombinado)!;
     expect((await agendarPeloChat("barbearia", pedido)).falta).toBe("servico");
     expect(mocks.createAppointment).not.toHaveBeenCalled();
+  });
+
+  it("identifica o cliente, a data e a hora em um pedido de cancelamento", () => {
+    expect(interpretarCancelamentoSimples("Cancele o horário da Ana hoje às 15h")).toEqual({
+      cliente: "Ana", data: "2026-11-27", hora: "15:00", aprovar: false,
+    });
+    expect(interpretarCancelamentoSimples("Cancele o horário das 15")).toMatchObject({ cliente: null, hora: "15:00" });
+  });
+
+  it("distingue aprovar um pedido de uma consulta sobre cancelamentos", () => {
+    expect(interpretarCancelamentoSimples("Aprove o cancelamento do agendamento de Ana de hoje")).toMatchObject({
+      cliente: "Ana", data: "2026-11-27", aprovar: true,
+    });
+    expect(interpretarCancelamentoSimples("Como cancelar o horário da Ana?")).toBeNull();
   });
 });

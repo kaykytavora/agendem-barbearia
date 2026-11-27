@@ -18,11 +18,15 @@ export type Database = {
         Row: {
           avaliado: boolean
           barbearia_id: string
+          cancelamento_confirmado_em: string | null
+          cancelamento_solicitado_por: "cliente" | "equipe" | null
+          cliente_confirmou_em: string | null
           cliente_email: string | null
           cliente_nome: string
           cliente_telefone: string
           created_at: string
           data_hora: string
+          equipe_confirmou_em: string | null
           funcionario_id: string | null
           id: string
           origem: string | null
@@ -885,6 +889,18 @@ export type Database = {
       }
     }
     Functions: {
+      gerenciar_agendamento: {
+        Args: { p_id: string; p_acao: string; p_token?: string }
+        Returns: Database["public"]["Enums"]["agendamento_status"]
+      }
+      consultar_agendamento_por_link: {
+        Args: { p_id: string; p_token: string }
+        Returns: Json
+      }
+      renovar_link_agendamento: {
+        Args: { p_id: string; p_hash: string }
+        Returns: undefined
+      }
       barbearia_tem_assinatura_ativa: {
         Args: { p_barbearia_id: string }
         Returns: boolean

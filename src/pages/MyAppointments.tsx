@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { AcoesAgendamento } from "@/components/AcoesAgendamento";
+import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -69,6 +71,10 @@ export default function MyAppointments() {
 				id,
 				data_hora,
 				status,
+				cliente_confirmou_em,
+				equipe_confirmou_em,
+				cancelamento_solicitado_por,
+				cancelamento_confirmado_em,
 				created_at,
 				servicos!inner (
 				nome,
@@ -93,6 +99,14 @@ export default function MyAppointments() {
 			return data || [];
 		},
 		enabled: !!user?.id,
+	});
+	const queryClient = useQueryClient();
+	useRealtimeSubscription({
+		channelName: "lista-agendamentos-cliente",
+		table: "agendamentos",
+		filter: `user_id=eq.${user?.id}`,
+		enabled: !!user?.id,
+		onUpdate: () => { void queryClient.invalidateQueries({ queryKey: ["all-appointments", user?.id] }); },
 	});
 
 	// Filtrar agendamentos
@@ -349,6 +363,7 @@ export default function MyAppointments() {
 													</Button>
 												</div>
 										</div>
+										<div className="mt-3"><AcoesAgendamento agendamento={appointment} lado="cliente" /></div>
 									</CardContent>
 								</Card>
 							);

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FEATURES } from "@/config/features";
+import { AcoesAgendamento } from "@/components/AcoesAgendamento";
+import { LinkClienteAgendamento } from "@/components/LinkClienteAgendamento";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +35,6 @@ import {
 	Phone,
 	Mail,
 	CheckCircle,
-	X,
 	Loader2,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
@@ -45,14 +45,15 @@ import { DashboardLayout } from "@/layouts/DashboardLayout";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useSearchParams } from "react-router-dom";
+import { gerenciarAgendamento, type AcompanhamentoAgendamento } from "@/integrations/supabase/api";
+import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
+import { whatsAppUrl } from "@/lib/utils";
+import { telefoneLocal } from "@/lib/agendamento-assistido";
 
-interface Appointment {
-	id: string;
+interface Appointment extends AcompanhamentoAgendamento {
 	cliente_nome: string;
 	cliente_telefone: string;
 	cliente_email: string | null;
-	data_hora: string;
-	status: "pendente" | "confirmado" | "cancelado" | "finalizado";
 	user_id?: string | null;
 	servicos: {
 		nome: string;
@@ -65,11 +66,7 @@ interface Appointment {
 }
 
 // --- Função de API ---
-const fetchAppointments = async (userId: string, dateRange: { from: Date; to?: Date }, statusFilter?: string, userRole?: string, funcionarioId?: string): Promise<Appointment[]> => {
-	if (!userId) return [];
-
-	// Remover o filtro manual de barbearia_id e deixar a política RLS fazer o trabalho
-	// A política RLS já garante que apenas agendamentos da barbearia do usuário sejam retornados
+const fetchAppointments = async (barbeariaId: string, dateRange: { from: Date; to?: Date }, statusFilter: string, funcionarioId?: string): Promise<Appointment[]> => {
 	let query = supabase
 		.from("agendamentos")
 		.select(`
@@ -79,17 +76,20 @@ const fetchAppointments = async (userId: string, dateRange: { from: Date; to?: D
 			cliente_email,
 			data_hora,
 			status,
+			cliente_confirmou_em,
+			equipe_confirmou_em,
+			cancelamento_solicitado_por,
+			cancelamento_confirmado_em,
 			user_id,
 			funcionario_id,
 			servicos!inner(nome, valor, duracao_minutos),
 			funcionarios(id, nome)
-		`);
+		`).eq("barbearia_id", barbeariaId);
 
-	// SISTEMA DE CONFIRMAÇÃO PAUSADO - Agendamentos já são criados como 'confirmado'
 	if (statusFilter === 'pendente') {
-		// Para agendamentos pendentes, buscar todos independente da data
-		// NOTA: Como agendamentos agora são auto-confirmados, este filtro retornará vazio
 		query = query.eq('status', 'pendente');
+	} else if (statusFilter === "pedido_cancelamento") {
+		query = query.in("status", ["pendente", "confirmado"]).not("cancelamento_solicitado_por", "is", null);
 	} else {
 		// Para outros filtros, usar o range de datas
 		const startDate = new Date(dateRange.from);
@@ -103,24 +103,16 @@ const fetchAppointments = async (userId: string, dateRange: { from: Date; to?: D
 			.lte("data_hora", endDate.toISOString());
 	}
 
+	if (funcionarioId) query = query.or(`funcionario_id.is.null,funcionario_id.eq.${funcionarioId}`);
 	const { data, error } = await query.order("data_hora");
 
 	if (error) throw error;
-
-	// Filtrar agendamentos para funcionários (não admin)
-	// Funcionários veem apenas seus próprios agendamentos OU agendamentos sem funcionário específico
-	if (userRole === 'funcionario' && funcionarioId && data) {
-		return data.filter(appointment =>
-			!appointment.funcionario_id || // Agendamentos sem funcionário específico
-			appointment.funcionario_id === funcionarioId // Ou agendamentos deste funcionário
-		);
-	}
 
 	return data || [];
 };
 
 export default function Appointments() {
-	const { user, role } = useAuth();
+	const { user, role, barbeariaId } = useAuth();
 	const { toast } = useToast();
 	const queryClient = useQueryClient();
 	const [searchParams] = useSearchParams();
@@ -147,6 +139,7 @@ export default function Appointments() {
 	const statusParam = searchParams.get("status");
 
 	const [statusFilter, setStatusFilter] = useState<string>(statusParam || "all");
+	useEffect(() => { setStatusFilter(statusParam || "all"); }, [statusParam]);
 	// Estado inicial pode ser undefined para não ter seleção prévia
 	const [dateRange, setDateRange] = useState<{ from: Date | undefined; to?: Date } | undefined>(() => {
 		if (appointmentDateStr) {
@@ -167,42 +160,35 @@ export default function Appointments() {
 
 	// --- Query e Mutações ---
 	const { data: appointments = [], isLoading, error } = useQuery<Appointment[]>({
-		queryKey: ['appointments', user?.id, dateRange, statusFilter, role, funcionarioId],
+		queryKey: ['appointments', user?.id, barbeariaId, dateRange, statusFilter, role, funcionarioId],
 		queryFn: () => {
 			// Se não houver range selecionado ou não tiver data de início, usa HOJE como padrão
 			const effectiveRange = (dateRange && dateRange.from) ? dateRange : { from: new Date(), to: new Date() };
 
 			return fetchAppointments(
-				user!.id,
+				barbeariaId!,
 				effectiveRange as { from: Date; to?: Date },
-				statusFilter === 'pendente' ? 'pendente' : undefined,
-				role || undefined,
+				statusFilter,
 				funcionarioId || undefined
 			);
 		},
-		enabled: !!user
+		enabled: !!barbeariaId && (role === "admin" || (role === "funcionario" && !!funcionarioId)),
+	});
+
+	useRealtimeSubscription({
+		channelName: "rotina-agendamentos-equipe",
+		table: "agendamentos",
+		filter: `barbearia_id=eq.${barbeariaId}`,
+		enabled: !!barbeariaId,
+		onUpdate: () => { void queryClient.invalidateQueries({ queryKey: ["appointments"] }); },
 	});
 
 	const updateStatusMutation = useMutation({
-		mutationFn: async ({ id, status, appointment }: {
-			id: string,
-			status: "pendente" | "confirmado" | "cancelado" | "finalizado",
-			appointment?: Appointment
-		}) => {
-			// Ao finalizar, o banco cria a avaliação pendente sozinho
-			const updateData: any = { status };
-
-			if (appointment && !appointment.user_id && appointment.cliente_telefone) {
-				updateData.cliente_telefone = appointment.cliente_telefone;
-			}
-
-			const { error } = await supabase.from("agendamentos").update(updateData).eq("id", id);
-			if (error) throw error;
-
-			return status;
-		},
+		mutationFn: (id: string) => gerenciarAgendamento(id, "finalizar"),
 		onSuccess: (status) => {
 			queryClient.invalidateQueries({ queryKey: ['appointments'] }); // Invalida todas as queries de appointments
+			void queryClient.invalidateQueries({ queryKey: ["inicio"] });
+			void queryClient.invalidateQueries({ queryKey: ["agendamentos-agenda"] });
 			toast({ title: "Sucesso", description: `Agendamento ${status} com sucesso` });
 		},
 		onError: (error: Error) => {
@@ -237,7 +223,7 @@ export default function Appointments() {
 		};
 
 		const filtered = appointments
-			.filter(appointment => statusFilter === "all" || appointment.status === statusFilter)
+			.filter(appointment => statusFilter === "all" || statusFilter === "pedido_cancelamento" || appointment.status === statusFilter)
 			.sort((a, b) => {
 				const dateA = new Date(a.data_hora);
 				const dateB = new Date(b.data_hora);
@@ -263,14 +249,6 @@ export default function Appointments() {
 
 	}, [appointments, statusFilter]);
 
-
-	const updateAppointmentStatus = (
-		id: string,
-		status: "pendente" | "confirmado" | "cancelado" | "finalizado",
-		appointment?: Appointment
-	) => {
-		updateStatusMutation.mutate({ id, status, appointment });
-	};
 
 	const getStatusColor = (status: string) => {
 		switch (status) {
@@ -355,6 +333,7 @@ export default function Appointments() {
 								<SelectItem value="confirmado">Confirmado</SelectItem>
 								<SelectItem value="finalizado">Finalizado</SelectItem>
 								<SelectItem value="cancelado">Cancelado</SelectItem>
+								<SelectItem value="pedido_cancelamento">Pedidos de cancelamento</SelectItem>
 							</SelectContent>
 						</Select>
 						<Popover>
@@ -478,103 +457,21 @@ export default function Appointments() {
 																</div>
 															</div>
 														</div>
-														<div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-															{/* SISTEMA DE CONFIRMAÇÃO PAUSADO - Agendamentos já são criados como 'confirmado'
-															    Para reativar: mudar status inicial para 'pendente' em api.ts e ativar FEATURES.confirmacaoAgendamento */}
-															{FEATURES.confirmacaoAgendamento && appointment.status === "pendente" && (
-																<>
-																	<AlertDialog>
-																		<AlertDialogTrigger asChild>
-																			<Button
-																				variant="outline"
-																				size="sm"
-																				className="text-green-600 border-green-500/50 hover:bg-green-500/10 text-xs sm:text-sm h-8 sm:h-auto"
-																				disabled={updateStatusMutation.isPending}
-																			>
-																				{updateStatusMutation.isPending ? (
-																					<Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 animate-spin" />
-																				) : (
-																					<CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-																				)}
-																				Confirmar
-																			</Button>
-																		</AlertDialogTrigger>
-																		<AlertDialogContent>
-																			<AlertDialogHeader>
-																				<AlertDialogTitle>
-																					Confirmar Agendamento?
-																				</AlertDialogTitle>
-																				<AlertDialogDescription>
-																					O cliente será notificado sobre a
-																					confirmação.
-																				</AlertDialogDescription>
-																			</AlertDialogHeader>
-																			<AlertDialogFooter>
-																				<AlertDialogCancel>
-																					Voltar
-																				</AlertDialogCancel>
-																				<AlertDialogAction
-																					onClick={() =>
-																						updateAppointmentStatus(
-																							appointment.id,
-																							"confirmado",
-																							appointment
-																						)
-																					}
-																				>
-																					Sim, confirmar
-																				</AlertDialogAction>
-																			</AlertDialogFooter>
-																		</AlertDialogContent>
-																	</AlertDialog>
-																	<AlertDialog>
-																		<AlertDialogTrigger asChild>
-																			<Button
-																				variant="outline"
-																				size="sm"
-																				className="text-red-600 border-red-500/50 hover:bg-red-500/10 text-xs sm:text-sm h-8 sm:h-auto"
-																				disabled={updateStatusMutation.isPending}
-																			>
-																				{updateStatusMutation.isPending ? (
-																					<Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 animate-spin" />
-																				) : (
-																					<X className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-																				)}
-																				Cancelar
-																			</Button>
-																		</AlertDialogTrigger>
-																		<AlertDialogContent>
-																			<AlertDialogHeader>
-																				<AlertDialogTitle>
-																					Cancelar Agendamento?
-																				</AlertDialogTitle>
-																				<AlertDialogDescription>
-																					Esta ação não pode ser desfeita e
-																					o cliente será notificado.
-																				</AlertDialogDescription>
-																			</AlertDialogHeader>
-																			<AlertDialogFooter>
-																				<AlertDialogCancel>
-																					Voltar
-																				</AlertDialogCancel>
-																				<AlertDialogAction
-																					className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-																					onClick={() =>
-																						updateAppointmentStatus(
-																							appointment.id,
-																							"cancelado",
-																							appointment
-																						)
-																					}
-																				>
-																					Sim, cancelar
-																				</AlertDialogAction>
-																			</AlertDialogFooter>
-																		</AlertDialogContent>
-																	</AlertDialog>
-																</>
+														<div className="flex w-full flex-wrap items-start gap-2 sm:w-auto sm:justify-end">
+															{telefoneLocal(appointment.cliente_telefone ?? "") && (
+																<Button asChild variant="outline" size="sm">
+																	<a href={whatsAppUrl(appointment.cliente_telefone)}
+																		target="_blank" rel="noopener noreferrer"
+																		aria-label={`Entrar em contato com ${appointment.cliente_nome} pelo WhatsApp`}>
+																		<Phone aria-hidden="true" /> Entrar em contato
+																	</a>
+																</Button>
 															)}
-															{appointment.status === "confirmado" && (
+															<AcoesAgendamento agendamento={appointment} lado="equipe" />
+															{!appointment.user_id && appointment.status !== "finalizado" && (
+																<LinkClienteAgendamento id={appointment.id} />
+															)}
+															{appointment.status === "confirmado" && !appointment.cancelamento_solicitado_por && (
 																<AlertDialog>
 																	<AlertDialogTrigger asChild>
 																		<Button
@@ -606,13 +503,7 @@ export default function Appointments() {
 																		<AlertDialogFooter>
 																			<AlertDialogCancel>Voltar</AlertDialogCancel>
 																			<AlertDialogAction
-																				onClick={() =>
-																					updateAppointmentStatus(
-																						appointment.id,
-																						"finalizado",
-																						appointment
-																					)
-																				}
+															onClick={() => updateStatusMutation.mutate(appointment.id)}
 																			>
 																				Sim, finalizar
 																			</AlertDialogAction>

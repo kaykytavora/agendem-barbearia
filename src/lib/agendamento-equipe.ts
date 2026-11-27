@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { createAppointment } from "@/integrations/supabase/api";
+import { caminhoAgendamento, createAppointment } from "@/integrations/supabase/api";
 import { dataLocalISO, gerarHorarios, horaNoDia, ocupacoesDoDia, pausasDoDia } from "@/lib/agenda";
 import type { HorarioDia } from "@/lib/horarios";
 import { dataValida, encontrarPorNome, encontrarServico, horaValida, normalizarNome, telefoneLocal, type RascunhoAgendamento } from "@/lib/agendamento-assistido";
@@ -72,7 +72,7 @@ async function acharContato(barbeariaId: string, nome: string) {
 }
 
 export type CampoAgendamento = "cliente" | "servico" | "profissional" | "data" | "hora" | "telefone";
-type ResultadoAgendamento = { texto: string; falta?: CampoAgendamento; criado?: true };
+type ResultadoAgendamento = { texto: string; falta?: CampoAgendamento; criado?: true; linkCliente?: { id: string; caminho: string } };
 
 function minutos(hora: string) {
   const [h, m] = hora.split(":").map(Number);
@@ -142,7 +142,7 @@ export async function agendarPeloChat(barbeariaId: string, rascunho: RascunhoAge
   if (!contato) return { texto: `Qual é o telefone de ${rascunho.cliente} com DDD?`, falta: "telefone" };
 
   try {
-    await createAppointment({
+    const agendamento = await createAppointment({
       barbearia_id: barbeariaId,
       cliente_nome: contato.nome,
       cliente_telefone: contato.telefone,
@@ -153,6 +153,11 @@ export async function agendarPeloChat(barbeariaId: string, rascunho: RascunhoAge
       user_id: null,
       avaliado: false,
     }, { carregarDetalhes: false });
+    return {
+      criado: true,
+      linkCliente: { id: agendamento.id, caminho: caminhoAgendamento(agendamento.id, agendamento.booking_token) },
+      texto: `Horário reservado. Aguardando confirmação do cliente.\n${contato.nome} · ${servico.nome}\n${dataBR} às ${hora} com ${profissional.nome}.`,
+    };
   } catch (erro) {
     if (erro instanceof Error && erro.message.startsWith("Esse horário já está reservado")) {
       return { texto: "Esse horário acabou de ser ocupado. Qual outro horário ou data você prefere?", falta: "hora" };
@@ -160,6 +165,4 @@ export async function agendarPeloChat(barbeariaId: string, rascunho: RascunhoAge
     if (erro instanceof Error && erro.message.startsWith("Este telefone atingiu")) return { texto: erro.message };
     throw erro;
   }
-
-  return { criado: true, texto: `Agendamento confirmado!\n${contato.nome} · ${servico.nome}\n${dataBR} às ${hora} com ${profissional.nome}.` };
 }

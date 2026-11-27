@@ -152,6 +152,41 @@ export function pediuParaAgendar(texto: string) {
   return /^(?:por favor[, ]+)?(?:(?:pode|poderia|voc[eê] pode|quero|preciso)\s+)?(?:agende|agendar|marque|marcar|reserve|reservar)\b/i.test(texto.trim());
 }
 
+export interface PedidoCancelamentoChat {
+  cliente: string | null;
+  data: string | null;
+  hora: string | null;
+  aprovar: boolean;
+}
+
+const comandoCancelamento = /^(?:por favor[, ]+)?(?:(?:pode|poderia|voc[eê] pode|quero|preciso(?: de)?|gostaria de)\s+)?(?:(cancele|cancela|cancelar)|(?:pe[çc]a|pedir|solicite|solicitar)\s+(?:o\s+)?cancelamento|((?:aprove|aprovar|confirme|confirmar)\s+(?:o\s+)?cancelamento))\b/i;
+
+export function interpretarCancelamentoSimples(texto: string): PedidoCancelamentoChat | null {
+  const comando = extrairTelefone(texto.trim()).comando.replace(/\bdas\s+(?=\d)/i, "às ");
+  const acao = comando.match(comandoCancelamento);
+  if (!acao) return null;
+
+  const { data, hora, marcaData, marcaHora } = extrairDataHora(comando);
+  let cliente = comando.slice(acao[0].length).trim();
+  if (marcaData) cliente = cliente.replace(marcaData, " ");
+  if (marcaHora) cliente = cliente.replace(marcaHora, " ");
+  cliente = cliente.trim()
+    .replace(/\b(?:de|d[ao]s?|[àa]s|para|em|no|na)\s*[,.!?]*$/i, "")
+    .replace(/\bpor favor\b[,!.?]*/gi, "")
+    .replace(/^(?:(?:o|a|um|uma|do|da|de)\s+)?(?:agendamento|hor[áa]rio|reserva)\b\s*/i, "")
+    .replace(/^(?:d[ao] cliente|de|da|do|para)\s+/i, "")
+    .replace(/^cliente\s+/i, "")
+    .replace(/[,!?]+$/g, "")
+    .trim();
+
+  // Datas relativas mais complexas e pedidos com detalhes adicionais passam pela IA.
+  if (/[\d]/.test(cliente) ||
+    /\b(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo|ontem|pr[óo]xim[oa]|semana|m[êe]s|com|manh[ãa]|tarde|noite)\b/i.test(cliente)) return null;
+  return { cliente: cliente || null, data, hora, aprovar: Boolean(acao[2]) };
+}
+
+export const pediuParaCancelar = (texto: string) => comandoCancelamento.test(texto.trim());
+
 export async function mensagemErroAssistente(erro: unknown) {
   if (erro instanceof FunctionsHttpError) {
     if (erro.context.status === 404) return "A função de IA ainda não foi publicada no Supabase.";
