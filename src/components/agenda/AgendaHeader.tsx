@@ -63,6 +63,7 @@ export function AgendaHeader({
             variant="ghost" 
             size="icon" 
             onClick={onPreviousWeek} 
+            aria-label="Semana anterior"
             className="h-8 w-8"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -79,6 +80,7 @@ export function AgendaHeader({
             variant="ghost" 
             size="icon" 
             onClick={onNextWeek} 
+            aria-label="Próxima semana"
             className="h-8 w-8"
           >
             <ChevronRight className="w-4 h-4" />

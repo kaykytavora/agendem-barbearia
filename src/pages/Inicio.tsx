@@ -239,7 +239,7 @@ export default function Inicio() {
 
   return (
     <DashboardLayout>
-      <div className="mx-auto max-w-5xl space-y-6 p-4 pb-24 sm:p-6 md:pb-8">
+      <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-muted-foreground first-letter:uppercase">
@@ -304,7 +304,7 @@ export default function Inicio() {
                   <h2 id="proximo-titulo" className="font-sans text-sm font-semibold text-primary-foreground/85">{proximoRotulo}</h2>
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                     <span className="font-display text-5xl font-extrabold leading-none">{formatarHora(dia.proximo.inicio)}</span>
-                    <span className="text-xl font-bold">{dia.proximo.cliente_nome}</span>
+                    <span className="break-words text-xl font-bold [overflow-wrap:anywhere]">{dia.proximo.cliente_nome}</span>
                   </div>
                   <p className="text-primary-foreground/85">
                     {[dia.proximo.servicos?.nome, dia.proximo.servicos && `${dia.proximo.servicos.duracao_minutos} min`, dia.proximo.funcionarios?.nome && `com ${dia.proximo.funcionarios.nome}`, dia.proximo.servicos && formatBRL(dia.proximo.servicos.valor)]
@@ -320,7 +320,7 @@ export default function Inicio() {
                       {finalizar.isPending ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
                       Finalizar atendimento
                     </Button> : (
-                      <Button asChild className="bg-primary-foreground text-foreground hover:bg-primary-foreground/90">
+                      <Button asChild className="h-auto min-h-10 whitespace-normal bg-primary-foreground py-2 text-center text-foreground hover:bg-primary-foreground/90">
                         <Link to={`/dashboard/agendamentos?highlight=${dia.proximo.id}`}>
                           {dia.proximo.cancelamento_solicitado_por ? "Ver pedido de cancelamento" : "Ver confirmação"}
                         </Link>
@@ -347,7 +347,7 @@ export default function Inicio() {
                         : "Divulgue seu link para preencher os horários livres."}
                   </p>
                   {role === "admin" && (
-                    <Button asChild variant="outline" className="mt-2 w-fit">
+                    <Button asChild variant="outline" className="mt-2 h-auto min-h-10 w-fit whitespace-normal py-2 text-center">
                       <Link to="/dashboard/share-profile"><Share2 /> Compartilhar link de agendamento</Link>
                     </Button>
                   )}

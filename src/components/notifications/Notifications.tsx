@@ -106,7 +106,7 @@ export function Notifications() {
       <audio ref={audioRef} src="/notification.mp3" preload="auto" />
       <Popover open={isOpen} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon" className="relative">
+          <Button variant="ghost" size="icon" className="relative" aria-label="Notificações">
             <Bell className="w-4 h-4" />
             {unreadCount > 0 && (
               <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-ping"></span>
@@ -116,7 +116,7 @@ export function Notifications() {
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-80">
+        <PopoverContent align="end" className="max-h-[var(--radix-popover-content-available-height)] w-80 max-w-[calc(100vw-1rem)] overflow-y-auto">
           <div className="grid gap-4">
             <div className="space-y-2">
               <h4 className="font-medium leading-none">Notificações</h4>

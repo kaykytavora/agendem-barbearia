@@ -19,7 +19,7 @@ export function BookingStepper({ current, onStepClick }: BookingStepperProps) {
   const currentIndex = STEPS.findIndex((s) => s.id === current);
 
   return (
-    <ol className="flex items-center gap-2" aria-label="Etapas do agendamento">
+    <ol className="grid grid-cols-3 items-center gap-1 min-[360px]:flex min-[360px]:gap-2" aria-label="Etapas do agendamento">
       {STEPS.map((step, index) => {
         const done = index < currentIndex;
         const active = index === currentIndex;
@@ -35,26 +35,26 @@ export function BookingStepper({ current, onStepClick }: BookingStepperProps) {
             >
               {done ? <Check className="h-4 w-4" aria-hidden="true" /> : index + 1}
             </span>
-            <span className={cn("text-sm font-semibold", !active && "text-muted-foreground")}>{step.label}</span>
+            <span className={cn("text-xs font-semibold min-[360px]:text-sm", !active && "text-muted-foreground")}>{step.label}</span>
           </>
         );
 
         return (
-          <li key={step.id} className="flex flex-1 items-center gap-2 last:flex-none" aria-current={active ? "step" : undefined}>
+          <li key={step.id} className="flex min-w-0 justify-center min-[360px]:flex-1 min-[360px]:items-center min-[360px]:gap-2 min-[360px]:last:flex-none" aria-current={active ? "step" : undefined}>
             {done && onStepClick ? (
               <button
                 type="button"
                 onClick={() => onStepClick(step.id)}
-                className="flex items-center gap-2 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-lg px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-[360px]:flex-row min-[360px]:gap-2 min-[360px]:px-0"
                 aria-label={`Voltar para ${step.label}`}
               >
                 {content}
               </button>
             ) : (
-              <span className="flex items-center gap-2">{content}</span>
+              <span className="flex min-h-11 flex-col items-center justify-center gap-1 min-[360px]:flex-row min-[360px]:gap-2">{content}</span>
             )}
             {index < STEPS.length - 1 && (
-              <span aria-hidden="true" className={cn("h-0.5 flex-1 rounded-full", done ? "bg-primary" : "bg-border")} />
+              <span aria-hidden="true" className={cn("hidden h-0.5 flex-1 rounded-full min-[360px]:block", done ? "bg-primary" : "bg-border")} />
             )}
           </li>
         );

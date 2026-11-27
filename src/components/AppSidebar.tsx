@@ -1,19 +1,5 @@
 import { NavLink } from "react-router-dom";
-import {
-  LayoutDashboard,
-  Calendar,
-  CalendarClock,
-  Users,
-  Scissors,
-  MessageSquare,
-  Settings,
-  LogOut,
-  Home,
-  User,
-  Link as LinkIcon,
-  CreditCard,
-  ChevronUp
-} from "lucide-react";
+import { ChevronUp, LogOut } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -43,81 +29,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
 
-const adminMenuItems = [
-  {
-    title: "Início",
-    url: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Minha Agenda",
-    url: "/dashboard/agenda",
-    icon: CalendarClock,
-  },
-  {
-    title: "Agendamentos",
-    url: "/dashboard/agendamentos",
-    icon: Calendar,
-  },
-  {
-    title: "Funcionários",
-    url: "/dashboard/funcionarios",
-    icon: Users,
-  },
-  {
-    title: "Serviços",
-    url: "/dashboard/servicos",
-    icon: Scissors,
-  },
-  {
-    title: "Férias & Recessos",
-    url: "/dashboard/ferias",
-    icon: Calendar,
-  },
-  {
-    title: "Feedbacks",
-    url: "/dashboard/feedbacks",
-    icon: MessageSquare,
-  },
-  {
-    title: "Compartilhar Perfil",
-    url: "/dashboard/share-profile",
-    icon: LinkIcon,
-  },
-];
-
-const funcionarioMenuItems = [
-  {
-    title: "Início",
-    url: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Minha Agenda",
-    url: "/dashboard/agenda",
-    icon: CalendarClock,
-  },
-  {
-    title: "Agendamentos",
-    url: "/dashboard/agendamentos",
-    icon: Calendar,
-  },
-  {
-    title: "Serviços",
-    url: "/dashboard/servicos",
-    icon: Scissors,
-  },
-  {
-    title: "Feedbacks",
-    url: "/dashboard/feedbacks",
-    icon: MessageSquare,
-  },
-  {
-    title: "Férias & Recessos",
-    url: "/dashboard/ferias",
-    icon: Calendar,
-  },
-];
+import { dashboardNavigation, dashboardPrimaryLinks } from "@/lib/dashboard-navigation";
 
 export function AppSidebar() {
   const { state, isMobile, setOpenMobile } = useSidebar();
@@ -130,7 +42,8 @@ export function AppSidebar() {
 
   const isAdmin = role === 'admin';
 
-  const menuItems = isAdmin ? adminMenuItems : funcionarioMenuItems;
+  const { sections, quick, account } = dashboardNavigation(isAdmin);
+  const menuItems = [...dashboardPrimaryLinks, ...sections];
 
   const handleItemClick = () => {
     if (isMobile) {
@@ -187,10 +100,9 @@ export function AppSidebar() {
 
   return (
     <Sidebar
-      className={`${collapsed ? "w-16" : "w-64"} transition-all duration-300`}
       collapsible="icon"
     >
-      <SidebarHeader className="p-4 border-b border-border/50">
+      <SidebarHeader className={collapsed ? "border-b border-border/50 p-2" : "border-b border-border/50 p-4"}>
         {!collapsed ? (
           <div className="flex items-center gap-3">
             <img src="/icon-agendem.svg" alt="agendem" className="w-8 h-8" />
@@ -204,7 +116,7 @@ export function AppSidebar() {
         )}
       </SidebarHeader>
 
-      <SidebarContent className="flex-1">
+      <SidebarContent role="navigation" aria-label="Navegação do painel" className="flex-1">
         <SidebarGroup>
           <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>
             {authLoading ? <Skeleton className="h-4 w-24" /> : (isAdmin ? "Administração" : "Funcionário")}
@@ -255,50 +167,40 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Quick Actions */}
-        {!collapsed && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-gray-900 dark:text-white">Ações Rápidas</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
+        <SidebarGroup>
+          <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>Ações Rápidas</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {quick.map((item) => (
+                <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton asChild>
-                    <NavLink to="/barbearias" className="flex items-center gap-3 px-3 py-2 text-gray-900 dark:text-white hover:text-gray-900 dark:hover:text-white hover:bg-muted/50 rounded-md transition-all"
-                      onClick={handleItemClick} // Close sidebar on mobile
-                      aria-label="Site Principal"
-                      title="Site Principal"
+                    <NavLink
+                      to={item.url}
+                      end
+                      className={getNavCls}
+                      onClick={handleItemClick}
+                      aria-label={item.title}
+                      title={item.title}
                     >
-                      <Home className="w-4 h-4" />
-                      <span className="text-sm">Site Principal</span>
+                      <item.icon className="h-4 w-4" />
+                      {!collapsed && <span>{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <NavLink to="/dashboard/settings" className="flex items-center gap-3 px-3 py-2 text-gray-900 dark:text-white hover:text-gray-900 dark:hover:text-white hover:bg-muted/50 rounded-md transition-all w-full"
-                      onClick={handleItemClick} // Close sidebar on mobile
-                      aria-label="Configurações"
-                      title="Configurações"
-                    >
-                      <Settings className="w-4 h-4" />
-                      <span className="text-sm">Configurações</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
 
       {/* User Profile & Logout */}
-      <div className="p-4 border-t border-border/50 mt-auto">
+      <div className={collapsed ? "mt-auto border-t border-border/50 p-2" : "mt-auto border-t border-border/50 p-4"}>
         {!collapsed ? (
           <div className="space-y-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="w-full p-2 h-auto justify-between hover:bg-muted/50 min-w-0">
-                  <div className="flex items-center gap-3">
+                <Button variant="ghost" aria-label="Menu da conta" className="h-auto w-full min-w-0 justify-between p-2 hover:bg-muted/50">
+                  <div className="flex min-w-0 items-center gap-3">
                     <Avatar className="w-8 h-8">
                       <AvatarFallback className="bg-gradient-primary text-white text-xs">
                         {authLoading ? '...' : userInitials}
@@ -313,26 +215,20 @@ export function AppSidebar() {
                       </div>
                     </div>
                   </div>
-                  <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                  <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" align="end" className="w-56">
-                <DropdownMenuItem asChild>
-                  <NavLink to="/dashboard/personal-settings" className="flex items-center gap-2 w-full" aria-label="Configurações Pessoais" title="Configurações Pessoais">
-                    <User className="w-4 h-4" />
-                    Configurações Pessoais
-                  </NavLink>
-                </DropdownMenuItem>
-                {isAdmin && (
-                  <DropdownMenuItem asChild>
-                    <NavLink to="/dashboard/subscription" className="flex items-center gap-2 w-full" aria-label="Assinatura" title="Assinatura">
-                      <CreditCard className="w-4 h-4" />
-                      Assinatura
+                {account.map((item) => (
+                  <DropdownMenuItem key={item.url} asChild>
+                    <NavLink to={item.url} end className="flex w-full items-center gap-2">
+                      <item.icon className="h-4 w-4" />
+                      {item.title}
                     </NavLink>
                   </DropdownMenuItem>
-                )}
+                ))}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-gray-900 dark:text-white">
+                <DropdownMenuItem onSelect={() => void handleLogout()} className="text-gray-900 dark:text-white">
                   <LogOut className="w-4 h-4 mr-2" />
                   Sair
                 </DropdownMenuItem>
@@ -343,7 +239,7 @@ export function AppSidebar() {
           <div className="flex flex-col items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="w-8 h-8">
+                <Button variant="ghost" size="icon" className="w-8 h-8" aria-label="Menu da conta">
                   <Avatar className="w-8 h-8">
                     <AvatarFallback className="bg-gradient-primary text-white text-xs">
                       {authLoading ? '...' : userInitials}
@@ -361,22 +257,16 @@ export function AppSidebar() {
                   </Badge>
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <NavLink to="/dashboard/personal-settings" className="flex items-center gap-2 w-full" aria-label="Configurações Pessoais" title="Configurações Pessoais">
-                    <User className="w-4 h-4" />
-                    Configurações Pessoais
-                  </NavLink>
-                </DropdownMenuItem>
-                {isAdmin && (
-                  <DropdownMenuItem asChild>
-                    <NavLink to="/dashboard/subscription" className="flex items-center gap-2 w-full" aria-label="Assinatura" title="Assinatura">
-                      <CreditCard className="w-4 h-4" />
-                      Assinatura
+                {account.map((item) => (
+                  <DropdownMenuItem key={item.url} asChild>
+                    <NavLink to={item.url} end className="flex w-full items-center gap-2">
+                      <item.icon className="h-4 w-4" />
+                      {item.title}
                     </NavLink>
                   </DropdownMenuItem>
-                )}
+                ))}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-gray-900 dark:text-white">
+                <DropdownMenuItem onSelect={() => void handleLogout()} className="text-gray-900 dark:text-white">
                   <LogOut className="w-4 h-4 mr-2" />
                   Sair
                 </DropdownMenuItem>

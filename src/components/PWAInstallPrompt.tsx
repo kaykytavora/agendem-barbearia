@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Download, X, Smartphone } from 'lucide-react';
+import { useMatch } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -13,6 +15,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export const PWAInstallPrompt = () => {
+  const noPainel = useMatch('/dashboard/*');
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -38,9 +41,7 @@ export const PWAInstallPrompt = () => {
     // Mostrar prompt apenas se não foi instalado, não foi dispensado, e não está em standalone
     if (!hasBeenInstalled && !hasBeenDismissed && !isInStandaloneMode) {
       // Para iOS, mostrar após 3 segundos
-      if (isIOSDevice) {
-        setTimeout(() => setIsVisible(true), 3000);
-      }
+      const iosTimer = isIOSDevice ? window.setTimeout(() => setIsVisible(true), 3000) : undefined;
 
       // Para Android/Desktop, aguardar evento beforeinstallprompt
       const handleBeforeInstallPrompt = (e: Event) => {
@@ -61,6 +62,7 @@ export const PWAInstallPrompt = () => {
       window.addEventListener('appinstalled', handleAppInstalled);
 
       return () => {
+        window.clearTimeout(iosTimer);
         window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
         window.removeEventListener('appinstalled', handleAppInstalled);
       };
@@ -93,7 +95,10 @@ export const PWAInstallPrompt = () => {
   }
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:w-96">
+    <div className={cn(
+      "fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-4 right-4 z-50 max-h-[calc(100dvh-7rem)] overflow-y-auto rounded-lg md:bottom-4 md:left-auto md:w-96",
+      noPainel && "max-md:bottom-[calc(4.25rem+env(safe-area-inset-bottom))]",
+    )}>
       <Card className="border-primary/20 bg-card/95 backdrop-blur-lg shadow-lg">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -104,6 +109,7 @@ export const PWAInstallPrompt = () => {
             <Button
               variant="ghost"
               size="sm"
+              aria-label="Fechar aviso de instalação"
               onClick={handleDismiss}
               className="h-6 w-6 p-0"
             >

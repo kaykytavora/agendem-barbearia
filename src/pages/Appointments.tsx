@@ -47,6 +47,7 @@ import { ptBR } from "date-fns/locale";
 import { useSearchParams } from "react-router-dom";
 import { gerenciarAgendamento, type AcompanhamentoAgendamento } from "@/integrations/supabase/api";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { whatsAppUrl } from "@/lib/utils";
 import { telefoneLocal } from "@/lib/agendamento-assistido";
 
@@ -112,6 +113,7 @@ const fetchAppointments = async (barbeariaId: string, dateRange: { from: Date; t
 };
 
 export default function Appointments() {
+	const isMobile = useIsMobile();
 	const { user, role, barbeariaId } = useAuth();
 	const { toast } = useToast();
 	const queryClient = useQueryClient();
@@ -310,7 +312,7 @@ export default function Appointments() {
 	return (
 		<DashboardLayout>
 			<div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
-				<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+				<div className="flex flex-col items-start justify-between gap-4 xl:flex-row xl:items-center">
 					<div>
 						<h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
 							<CalendarIcon className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
@@ -321,9 +323,9 @@ export default function Appointments() {
 						</p>
 					</div>
 
-					<div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto">
+					<div className="flex w-full flex-wrap gap-3 sm:gap-4 xl:w-auto">
 						<Select value={statusFilter} onValueChange={setStatusFilter}>
-							<SelectTrigger className="w-full sm:w-48 h-10 sm:h-auto">
+							<SelectTrigger aria-label="Filtrar por status" className="h-10 w-full sm:w-48">
 								<Filter className="w-4 h-4 mr-2" />
 								<SelectValue placeholder="Filtrar por status" />
 							</SelectTrigger>
@@ -340,7 +342,7 @@ export default function Appointments() {
 							<PopoverTrigger asChild>
 								<Button
 									variant={"outline"}
-									className="w-full sm:w-64 justify-start text-left font-normal h-10 sm:h-auto text-sm sm:text-base"
+									className="h-10 w-full justify-start text-left text-sm font-normal sm:w-64 sm:text-base"
 								>
 									<CalendarIcon className="mr-2 h-4 w-4" />
 									{dateRange?.from ? (
@@ -357,13 +359,13 @@ export default function Appointments() {
 									)}
 								</Button>
 							</PopoverTrigger>
-							<PopoverContent className="w-auto p-0" align="end">
+							<PopoverContent className="max-h-[var(--radix-popover-content-available-height)] w-auto overflow-y-auto p-0" align="end">
 								<Calendar
 									mode="range"
 									selected={dateRange}
 									onSelect={setDateRange}
 									locale={ptBR}
-									numberOfMonths={2}
+									numberOfMonths={isMobile ? 1 : 2}
 								/>
 							</PopoverContent>
 						</Popover>
@@ -388,7 +390,7 @@ export default function Appointments() {
 							([date, appointmentsOnDate]) => (
 								<div key={date}>
 									<h2 className="text-lg sm:text-xl font-semibold mb-3">{date}</h2>
-									<div className="grid gap-3 sm:gap-4">
+									<div className="grid grid-cols-1 gap-3 sm:gap-4">
 										{appointmentsOnDate.map((appointment) => (
 											<Card
 												key={appointment.id}
@@ -404,8 +406,8 @@ export default function Appointments() {
 													}`}
 											>
 												<CardContent className="p-4 sm:p-6">
-													<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-														<div className="flex items-center gap-3 sm:gap-4 flex-1">
+													<div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
+														<div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
 															<div className="text-center flex-shrink-0">
 																<div className="text-lg sm:text-2xl font-bold text-primary">
 																	{formatTime(appointment.data_hora)}
@@ -414,14 +416,14 @@ export default function Appointments() {
 																	{appointment.servicos.duracao_minutos}min
 																</div>
 															</div>
-															<div className="flex-1 min-w-0">
+															<div className="min-w-0 flex-1">
 																<div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
-																	<h3 className="font-semibold text-base sm:text-lg truncate">
+																			<h3 className="text-base font-semibold [overflow-wrap:anywhere] sm:text-lg">
 																		{appointment.cliente_nome}
 																	</h3>
 																	<Badge
 																		variant="outline"
-																		className={`${getStatusColor(appointment.status)} text-xs self-start sm:self-auto`}
+																		className={`${getStatusColor(appointment.status)} shrink-0 self-start text-xs sm:self-auto`}
 																	>
 																		{getStatusLabel(appointment.status)}
 																	</Badge>
@@ -429,7 +431,7 @@ export default function Appointments() {
 																<div className="text-xs sm:text-sm text-muted-foreground space-y-1">
 																	<div className="flex items-center gap-2">
 																		<User className="w-3 h-3 flex-shrink-0" />
-																		<span className="truncate">{appointment.servicos.nome}</span>
+																		<span className="min-w-0 [overflow-wrap:anywhere]">{appointment.servicos.nome}</span>
 																		<span>•</span>
 																		<span className="flex-shrink-0">
 																			R${" "}
@@ -438,7 +440,7 @@ export default function Appointments() {
 																	</div>
 																	<div className="flex items-center gap-2">
 																		<Phone className="w-3 h-3 flex-shrink-0" />
-																		<span className="truncate">{appointment.cliente_telefone}</span>
+																		<span className="shrink-0">{appointment.cliente_telefone}</span>
 																		{appointment.funcionarios && (
 																			<>
 																				<span>•</span>
@@ -451,13 +453,13 @@ export default function Appointments() {
 																	{appointment.cliente_email && (
 																		<div className="flex items-center gap-2">
 																			<Mail className="w-3 h-3 flex-shrink-0" />
-																			<span className="truncate">{appointment.cliente_email}</span>
+																			<span className="min-w-0 [overflow-wrap:anywhere]">{appointment.cliente_email}</span>
 																		</div>
 																	)}
 																</div>
 															</div>
 														</div>
-														<div className="flex w-full flex-wrap items-start gap-2 sm:w-auto sm:justify-end">
+														<div className="flex w-full flex-wrap items-start gap-2 xl:w-auto xl:max-w-[55%] xl:justify-end">
 															{telefoneLocal(appointment.cliente_telefone ?? "") && (
 																<Button asChild variant="outline" size="sm">
 																	<a href={whatsAppUrl(appointment.cliente_telefone)}
