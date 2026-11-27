@@ -2,6 +2,12 @@ import { supabase } from './client';
 import { Tables } from './types';
 
 export type Agendamento = Tables<'agendamentos'>;
+export type AcompanhamentoAgendamento = Pick<Agendamento,
+  "id" | "data_hora" | "status" | "cliente_confirmou_em" | "equipe_confirmou_em" |
+  "cancelamento_solicitado_por" | "cancelamento_confirmado_em"
+>;
+export type AcaoAgendamento = "confirmar" | "pedir_cancelamento" | "aprovar_cancelamento" |
+  "recusar_cancelamento" | "retirar_cancelamento" | "finalizar";
 
 /**
  * Gera um token seguro de 64 bytes para autoatendimento
@@ -30,7 +36,8 @@ const generateSHA256Hash = async (token: string): Promise<string> => {
  * @throws Se ocorrer um erro na criação.
  */
 export const createAppointment = async (
-  appointmentData: Omit<Agendamento, 'id' | 'created_at' | 'updated_at' | 'status' | 'booking_token_hash' | 'customer_id' | 'origem'> & { user_id: string | null },
+  appointmentData: Pick<Agendamento, "barbearia_id" | "servico_id" | "funcionario_id" | "data_hora" |
+    "cliente_nome" | "cliente_telefone" | "cliente_email" | "user_id" | "avaliado">,
   options?: { carregarDetalhes?: boolean },
 ) => {
   // Tenta obter a sessão do usuário de forma silenciosa.
@@ -54,8 +61,7 @@ export const createAppointment = async (
     cliente_email: appointmentData.cliente_email,
     data_hora: appointmentData.data_hora,
     booking_token_hash: bookingTokenHash,
-    status: 'confirmado' as const, // Status inicial é confirmado automaticamente
-    // TODO: Sistema de confirmação manual está pausado, pode ser reativado alterando para 'pendente'
+    status: 'pendente' as const,
   };
 
   // Adicionar user_id apenas se não for nulo (para evitar erro de RLS em usuários anônimos)
@@ -101,6 +107,29 @@ export const createAppointment = async (
   };
 };
 
+export async function gerenciarAgendamento(id: string, acao: AcaoAgendamento, token?: string) {
+  const { data, error } = await supabase.rpc("gerenciar_agendamento", { p_id: id, p_acao: acao, p_token: token });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export function caminhoAgendamento(id: string, token: string) {
+  return `/acompanhar-agendamento/${id}#${token}`;
+}
+
+export async function renovarLinkAgendamento(id: string) {
+  const token = generateBookingToken();
+  const { error } = await supabase.rpc("renovar_link_agendamento", { p_id: id, p_hash: await generateSHA256Hash(token) });
+  if (error) throw new Error(error.message);
+  return new URL(caminhoAgendamento(id, token), window.location.origin).href;
+}
+
+export async function consultarAgendamentoPorLink(id: string, token: string) {
+  const { data, error } = await supabase.rpc("consultar_agendamento_por_link", { p_id: id, p_token: token });
+  if (error) throw new Error(error.message);
+  return data as (AcompanhamentoAgendamento & { barbearia: string; servico: string; profissional: string | null }) | null;
+}
+
 /**
  * Busca os agendamentos de um usuário.
  * @param userId - O ID do usuário.
@@ -144,7 +173,7 @@ export const getUpcomingAppointments = async (userId: string) => {
     `
 		)
 		.eq("user_id", userId)
-		.gte("data_hora", now)
+		.or(`data_hora.gte.${now},cancelamento_solicitado_por.not.is.null`)
 		.in("status", ["pendente", "confirmado"]) // Filtra apenas agendamentos ativos
 		.order("data_hora", { ascending: true });
 
@@ -172,9 +201,8 @@ export const getPastAppointments = async (userId: string) => {
       funcionarios (*)
     `
 		)
-		.eq("user_id", userId)
-		.lt("data_hora", now)
-		.in("status", ["finalizado", "cancelado"]) // Corrigido para usar os status corretos do enum
+    .eq("user_id", userId)
+    .or(`status.eq.cancelado,and(status.eq.finalizado,data_hora.lt.${now})`)
 		.order("data_hora", { ascending: false });
 
 	if (error) {

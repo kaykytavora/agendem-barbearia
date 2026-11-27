@@ -43,7 +43,7 @@ const BookingConfirmation = () => {
         cliente_telefone: bookingData.booking?.phone || '',
         cliente_email: bookingData.booking?.email || '',
         data_hora: `${bookingData.booking?.date}T${bookingData.booking?.time}:00`,
-        status: 'confirmado',
+        status: bookingData.status || 'pendente',
         servico: {
           nome: bookingData.service?.name || 'Serviço',
           valor: parseFloat(bookingData.service?.price || '0'),
@@ -97,9 +97,9 @@ const BookingConfirmation = () => {
           <div className={`${isMobile ? 'w-16 h-16' : 'w-20 h-20'} bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4`}>
             <CheckCircle className={`${isMobile ? 'w-8 h-8' : 'w-10 h-10'} text-green-500`} />
           </div>
-          <h1 className={`${isMobile ? 'text-2xl' : 'text-3xl'} font-bold text-green-500 mb-2`}>Agendamento Confirmado!</h1>
+          <h1 className={`${isMobile ? 'text-2xl' : 'text-3xl'} font-bold text-green-500 mb-2`}>Horário reservado</h1>
           <p className={`text-muted-foreground ${isMobile ? 'text-sm' : ''}`}>
-            Seu horário foi reservado com sucesso
+            Consulte o status do horário em Meus Agendamentos.
           </p>
         </div>
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarPlus, CheckCircle2, Clock, Loader2, MessageCircle, Share2 } from "lucide-react";
+import { CalendarPlus, CheckCircle2, Clock, Loader2, MessageCircle, Share2, TriangleAlert } from "lucide-react";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,11 +10,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn, formatBRL, whatsAppUrl } from "@/lib/utils";
 import { formatarHora, horaNoDia, intervalosLivres, type Ocupacao } from "@/lib/agenda";
 import { PausaControl } from "@/components/dashboard/PausaControl";
+import { gerenciarAgendamento } from "@/integrations/supabase/api";
+import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 
 interface AgendamentoDoDia {
   id: string;
   data_hora: string;
   status: "pendente" | "confirmado" | "cancelado" | "finalizado";
+  cancelamento_solicitado_por: "cliente" | "equipe" | null;
   cliente_nome: string;
   cliente_telefone: string;
   servicos: { nome: string; valor: number; duracao_minutos: number } | null;
@@ -27,6 +30,7 @@ interface Atendimento extends AgendamentoDoDia {
 }
 
 const inicioDoDia = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const linkPedidosCancelamento = "/dashboard/agendamentos?status=pedido_cancelamento";
 
 async function carregarInicio(userId: string, somenteDoFuncionario: boolean) {
   const { data: barbeariaId, error: rpcError } = await supabase.rpc("get_user_barbearia_id", { user_uuid: userId });
@@ -39,13 +43,14 @@ async function carregarInicio(userId: string, somenteDoFuncionario: boolean) {
 
   let funcionarioId: string | null = null;
   if (somenteDoFuncionario) {
-    const { data } = await supabase.from("funcionarios").select("id").eq("user_id", userId).maybeSingle();
+    const { data } = await supabase.from("funcionarios").select("id")
+      .eq("barbearia_id", barbeariaId).eq("user_id", userId).maybeSingle();
     funcionarioId = data?.id ?? null;
   }
 
   let consulta = supabase
     .from("agendamentos")
-    .select("id, data_hora, status, cliente_nome, cliente_telefone, servicos(nome, valor, duracao_minutos), funcionarios(nome)")
+    .select("id, data_hora, status, cancelamento_solicitado_por, cliente_nome, cliente_telefone, servicos(nome, valor, duracao_minutos), funcionarios(nome)")
     .eq("barbearia_id", barbeariaId)
     .gte("data_hora", hoje.toISOString())
     .lt("data_hora", amanha.toISOString())
@@ -64,7 +69,17 @@ async function carregarInicio(userId: string, somenteDoFuncionario: boolean) {
     .lt("data_hora", inicioProximoMes.toISOString());
   if (funcionarioId) consultaMes = consultaMes.eq("funcionario_id", funcionarioId);
 
-  const [{ data: agendamentos, error }, { data: horario }, { data: doMes, error: erroMes }] = await Promise.all([
+  let consultaCancelamentos = supabase
+    .from("agendamentos")
+    .select("id", { count: "exact", head: true })
+    .eq("barbearia_id", barbeariaId)
+    .eq("cancelamento_solicitado_por", "cliente")
+    .in("status", ["pendente", "confirmado"]);
+  if (funcionarioId) {
+    consultaCancelamentos = consultaCancelamentos.or(`funcionario_id.eq.${funcionarioId},funcionario_id.is.null`);
+  }
+
+  const [{ data: agendamentos, error }, { data: horario }, { data: doMes, error: erroMes }, pedidos] = await Promise.all([
     consulta,
     supabase
       .from("horarios_funcionamento")
@@ -73,6 +88,7 @@ async function carregarInicio(userId: string, somenteDoFuncionario: boolean) {
       .eq("dia_semana", hoje.getDay())
       .maybeSingle(),
     consultaMes,
+    somenteDoFuncionario && !funcionarioId ? Promise.resolve({ count: 0, error: null }) : consultaCancelamentos,
   ]);
   if (error) throw error;
   if (erroMes) throw erroMes;
@@ -81,6 +97,7 @@ async function carregarInicio(userId: string, somenteDoFuncionario: boolean) {
     agendamentos: (agendamentos ?? []) as unknown as AgendamentoDoDia[],
     horario,
     mes: resumirMes((doMes ?? []) as unknown as AgendamentoDoMes[]),
+    pedidosCancelamento: pedidos.error ? null : pedidos.count,
   };
 }
 
@@ -129,26 +146,34 @@ const duracaoTexto = (min: number) => {
 
 /** Tela inicial do painel: o dia (próximo cliente, números, agenda), a pausa e o resumo do mês. */
 export default function Inicio() {
-  const { user, role, profile } = useAuth();
+  const { user, role, profile, barbeariaId } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const agora = useAgora();
   const somenteDoFuncionario = role === "funcionario";
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["inicio", user?.id, somenteDoFuncionario],
+    queryKey: ["inicio", user?.id, barbeariaId, somenteDoFuncionario],
     queryFn: () => carregarInicio(user!.id, somenteDoFuncionario),
-    enabled: !!user,
+    enabled: !!user && (role === "admin" || somenteDoFuncionario),
     refetchInterval: 2 * 60_000,
   });
 
+  useRealtimeSubscription({
+    channelName: "inicio-agendamentos",
+    table: "agendamentos",
+    filter: `barbearia_id=eq.${barbeariaId}`,
+    event: "UPDATE",
+    enabled: !!barbeariaId,
+    onUpdate: () => { void queryClient.invalidateQueries({ queryKey: ["inicio", user?.id, barbeariaId] }); },
+  });
+
   const finalizar = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("agendamentos").update({ status: "finalizado" }).eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: (id: string) => gerenciarAgendamento(id, "finalizar"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inicio"] });
+      void queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      void queryClient.invalidateQueries({ queryKey: ["agendamentos-agenda"] });
       toast({ title: "Atendimento finalizado" });
     },
     onError: (error) => {
@@ -201,6 +226,7 @@ export default function Inicio() {
   }, [data, agora]);
 
   const primeiroNome = profile?.name?.split(" ")[0];
+  const pedidosCancelamento = data?.pedidosCancelamento ?? 0;
   const minutosParaProximo = dia.proximo ? Math.round((dia.proximo.inicio.getTime() - agora.getTime()) / 60_000) : 0;
   const proximoRotulo = !dia.proximo
     ? ""
@@ -223,6 +249,11 @@ export default function Inicio() {
             </h1>
           </div>
           <div className="flex flex-wrap gap-2">
+            {pedidosCancelamento === 0 && (
+              <Button asChild size="lg" variant="outline">
+                <Link to={linkPedidosCancelamento}>Pedidos de cancelamento</Link>
+              </Button>
+            )}
             <PausaControl />
             <Button asChild size="lg">
               <Link to="/dashboard/new-appointment">
@@ -232,6 +263,25 @@ export default function Inicio() {
             </Button>
           </div>
         </div>
+
+        {pedidosCancelamento > 0 && (
+          <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-500/35 bg-amber-500/10 p-4 sm:px-5">
+            <div className="flex items-start gap-3">
+              <TriangleAlert aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-400" />
+              <div>
+                <h2 className="font-semibold" aria-live="polite">
+                  {pedidosCancelamento === 1
+                    ? "1 pedido de cancelamento aguardando resposta"
+                    : `${pedidosCancelamento} pedidos de cancelamento aguardando resposta`}
+                </h2>
+                <p className="text-sm text-muted-foreground">Os horários continuam reservados até a equipe decidir.</p>
+              </div>
+            </div>
+            <Button asChild size="sm" variant="outline">
+              <Link to={linkPedidosCancelamento}>{pedidosCancelamento === 1 ? "Revisar pedido" : "Revisar pedidos"}</Link>
+            </Button>
+          </section>
+        )}
 
         {isLoading ? (
           <div className="flex items-center justify-center py-20 text-muted-foreground">
@@ -259,14 +309,20 @@ export default function Inicio() {
                       .join(" · ")}
                   </p>
                   <div className="mt-1 flex flex-wrap gap-2">
-                    <Button
+                    {dia.proximo.status === "confirmado" && !dia.proximo.cancelamento_solicitado_por ? <Button
                       className="bg-primary-foreground text-foreground hover:bg-primary-foreground/90"
                       onClick={() => finalizar.mutate(dia.proximo!.id)}
                       disabled={finalizar.isPending}
                     >
                       {finalizar.isPending ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
                       Finalizar atendimento
-                    </Button>
+                    </Button> : (
+                      <Button asChild className="bg-primary-foreground text-foreground hover:bg-primary-foreground/90">
+                        <Link to={`/dashboard/agendamentos?highlight=${dia.proximo.id}`}>
+                          {dia.proximo.cancelamento_solicitado_por ? "Ver pedido de cancelamento" : "Ver confirmação"}
+                        </Link>
+                      </Button>
+                    )}
                     {dia.proximo.cliente_telefone && (
                       <Button asChild variant="outline" className="border-primary-foreground/50 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
                         <a href={whatsAppUrl(dia.proximo.cliente_telefone)} target="_blank" rel="noopener noreferrer">

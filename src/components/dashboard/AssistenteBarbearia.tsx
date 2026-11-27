@@ -8,12 +8,16 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { dataLocalISO } from "@/lib/agenda";
-import { extrairDataHora, extrairTelefone, interpretarAgendamentoSimples, mensagemErroAssistente, pediuParaAgendar, type RascunhoAgendamento } from "@/lib/agendamento-assistido";
+import { extrairDataHora, extrairTelefone, interpretarAgendamentoSimples, interpretarCancelamentoSimples, mensagemErroAssistente, pediuParaAgendar, pediuParaCancelar, type PedidoCancelamentoChat, type RascunhoAgendamento } from "@/lib/agendamento-assistido";
 import { agendarPeloChat, type CampoAgendamento } from "@/lib/agendamento-equipe";
+import { LinkClienteAgendamento } from "@/components/LinkClienteAgendamento";
+import { CancelamentoNoChat } from "@/components/dashboard/CancelamentoNoChat";
 
 interface Mensagem {
   pergunta: string;
   resposta?: string;
+  linkCliente?: { id: string; caminho: string };
+  cancelamento?: PedidoCancelamentoChat;
 }
 
 function completarAgendamento(rascunho: RascunhoAgendamento, campo: CampoAgendamento, texto: string) {
@@ -114,13 +118,16 @@ export function AssistenteBarbearia({ barbeariaId, admin }: { barbeariaId: strin
     const contato = extrairTelefone(texto);
     const perguntaVisivel = contato.telefone ? contato.comando || "Telefone informado" : texto;
     setConversa((prev) => [...prev, { pergunta: perguntaVisivel }]);
-    let resposta = "Não consegui consultar a barbearia agora. Tente novamente.";
+    let resposta: string | undefined = "Não consegui consultar a barbearia agora. Tente novamente.";
+    let linkCliente: Mensagem["linkCliente"];
+    let cancelamento = interpretarCancelamentoSimples(texto) ?? undefined;
     let consultandoAgenda = false;
     try {
       const novoAgendamento = pediuParaAgendar(texto);
+      const novoCancelamento = pediuParaCancelar(texto);
       let rascunho = interpretarAgendamentoSimples(texto);
-      if (novoAgendamento || rascunho) setPendente(null);
-      if (!rascunho && !novoAgendamento && pendente) {
+      if (novoAgendamento || novoCancelamento || rascunho) setPendente(null);
+      if (!rascunho && !novoAgendamento && !novoCancelamento && pendente) {
         rascunho = completarAgendamento(pendente.rascunho, pendente.campo, texto);
       }
       if (!rascunho && novoAgendamento) {
@@ -130,11 +137,14 @@ export function AssistenteBarbearia({ barbeariaId, admin }: { barbeariaId: strin
         if (error) throw error;
         if (data) rascunho = { ...data, telefone: contato.telefone };
       }
-      if (rascunho) {
+      if (cancelamento) {
+        resposta = undefined;
+      } else if (rascunho) {
         consultandoAgenda = true;
         const resultado = await agendarPeloChat(barbeariaId, rascunho);
         setPendente(resultado.falta ? { rascunho, campo: resultado.falta } : null);
         resposta = resultado.texto;
+        linkCliente = resultado.linkCliente;
         if (resultado.criado) {
           void queryClient.invalidateQueries({ queryKey: ["inicio"] });
           void queryClient.invalidateQueries({ queryKey: ["agendamentos-agenda"] });
@@ -143,12 +153,22 @@ export function AssistenteBarbearia({ barbeariaId, admin }: { barbeariaId: strin
       } else if (novoAgendamento) {
         resposta = "Descreva o serviço e para quem quer agendar.";
       } else {
-        const { data, error } = await supabase.functions.invoke<{ texto?: string; acao?: "agendamento" }>(
+        const { data, error } = await supabase.functions.invoke<{
+          texto?: string;
+          acao?: "agendamento" | "cancelamento";
+          pedido?: PedidoCancelamentoChat;
+        }>(
           "ai-appointment-draft",
           { body: { modo: "gestao", comando: contato.comando } },
         );
         if (error) throw error;
-        resposta = data?.acao === "agendamento" ? "Escreva “Agende” seguido do serviço, cliente e horário." : data?.texto || resposta;
+        if (data?.acao === "cancelamento" && data.pedido) {
+          cancelamento = data.pedido;
+          setPendente(null);
+          resposta = undefined;
+        } else {
+          resposta = data?.acao === "agendamento" ? "Escreva “Agende” seguido do serviço, cliente e horário." : data?.texto || resposta;
+        }
       }
     } catch (erro) {
       resposta = consultandoAgenda
@@ -158,7 +178,7 @@ export function AssistenteBarbearia({ barbeariaId, admin }: { barbeariaId: strin
       enviando.current = false;
       setConsultando(false);
     }
-    setConversa((prev) => prev.map((item, index) => index === prev.length - 1 ? { ...item, resposta } : item));
+    setConversa((prev) => prev.map((item, index) => index === prev.length - 1 ? { ...item, resposta, linkCliente, cancelamento } : item));
   }
 
   return (
@@ -173,7 +193,7 @@ export function AssistenteBarbearia({ barbeariaId, admin }: { barbeariaId: strin
         <SheetHeader className="border-b p-5 pr-12 text-left">
           <SheetTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Assistente da barbearia</SheetTitle>
           <SheetDescription>
-            {admin ? "Consulte atendimentos, faturamento e gastos ou peça um agendamento." : "Consulte seus atendimentos ou peça um agendamento."}
+            {admin ? "Consulte atendimentos e finanças, agende ou peça cancelamentos." : "Consulte seus atendimentos, agende ou peça cancelamentos."}
           </SheetDescription>
         </SheetHeader>
         <Tabs defaultValue="conversa" className="flex min-h-0 flex-1 flex-col">
@@ -185,14 +205,16 @@ export function AssistenteBarbearia({ barbeariaId, admin }: { barbeariaId: strin
           )}
           <TabsContent value="conversa" className="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5" role="log" aria-live="polite">
-              {conversa.length === 0 && [...sugestoes, "Agende um corte para Ana às 15h"].map((sugestao) => (
+              {conversa.length === 0 && [...sugestoes, "Agende um corte para Ana às 15h", "Cancele o horário da Ana hoje às 15h"].map((sugestao) => (
                 <Button key={sugestao} type="button" variant="outline" className="h-auto whitespace-normal text-left"
-                  onClick={() => sugestao.startsWith("Agende") ? setComando(sugestao) : void perguntar(sugestao)}>{sugestao}</Button>
+                  onClick={() => /^(?:Agende|Cancele)\b/.test(sugestao) ? setComando(sugestao) : void perguntar(sugestao)}>{sugestao}</Button>
               ))}
-              {conversa.map(({ pergunta, resposta }, index) => (
+              {conversa.map(({ pergunta, resposta, linkCliente, cancelamento }, index) => (
                 <div key={index} className="space-y-2">
                   <p className="ml-auto w-fit max-w-[90%] rounded-xl bg-primary px-3 py-2 text-sm text-primary-foreground">{pergunta}</p>
                   {resposta && <p className="w-fit max-w-[95%] whitespace-pre-line rounded-xl bg-muted px-3 py-2 text-sm">{resposta}</p>}
+                  {linkCliente && <LinkClienteAgendamento id={linkCliente.id} linkInicial={linkCliente.caminho} />}
+                  {cancelamento && <CancelamentoNoChat pedido={cancelamento} barbeariaId={barbeariaId} admin={admin} />}
                 </div>
               ))}
               {consultando && <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Consultando...</p>}

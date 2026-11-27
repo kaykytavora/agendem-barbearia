@@ -46,6 +46,7 @@ const ClientSettings = lazy(() => import("./pages/ClientSettings"));
 const Subscription = lazy(() => import("./pages/Subscription"));
 const PersonalSettings = lazy(() => import("./pages/PersonalSettings"));
 const MyAppointments = lazy(() => import("./pages/MyAppointments"));
+const AcompanharAgendamento = lazy(() => import("./pages/AcompanharAgendamento"));
 const Ferias = lazy(() => import("./pages/Ferias"));
 const Agenda = lazy(() => import("./pages/Agenda"));
 
@@ -69,6 +70,7 @@ const App = () => (
 								<Route path="/barbearias" element={<BarberShops />} />
 								<Route path="/barbearia/:slug" element={<BarberShopDetails />} />
 								<Route path="/agendamento" element={<Booking />} />
+								<Route path="/acompanhar-agendamento/:id" element={<AcompanharAgendamento />} />
 								<Route
 									path="/agendamento-confirmado"
 									element={<BookingConfirmation />}

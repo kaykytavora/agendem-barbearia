@@ -1,4 +1,4 @@
-export const assuntos = ["agendamento", "cortes", "atendimentos", "faturamento", "gastos", "lucro", "resumo", "outro"] as const;
+export const assuntos = ["agendamento", "cancelamento", "aprovar_cancelamento", "cortes", "atendimentos", "faturamento", "gastos", "lucro", "resumo", "outro"] as const;
 export const periodos = ["hoje", "ontem", "esta_semana", "semana_passada", "ultimos_7_dias", "este_mes", "mes_passado", "este_ano", "personalizado", "sem_periodo"] as const;
 type Assunto = typeof assuntos[number];
 
@@ -81,6 +81,6 @@ export function respostaGestao(assunto: Assunto, inicio: string, fim: string, da
     lucro: [faturamento, gastos, lucro],
     resumo: [`${atendimentos}, incluindo ${cortes}.`, faturamento, gastos, faturamento && lucro],
   };
-  if (assunto === "agendamento" || assunto === "outro") return "";
+  if (assunto === "agendamento" || assunto === "cancelamento" || assunto === "aprovar_cancelamento" || assunto === "outro") return "";
   return [periodo, ...linhas[assunto].filter(Boolean)].join("\n");
 }

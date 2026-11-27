@@ -10,7 +10,8 @@ import { Calendar, User, Plus, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { createAppointment } from "@/integrations/supabase/api";
+import { caminhoAgendamento, createAppointment } from "@/integrations/supabase/api";
+import { LinkClienteAgendamento } from "@/components/LinkClienteAgendamento";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 import { dataLocalISO, type Horario } from "@/lib/agenda";
 import type { HorarioDia } from "@/lib/horarios";
@@ -42,6 +43,7 @@ export default function NewAppointment() {
   const [loadingTimes, setLoadingTimes] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [linkCliente, setLinkCliente] = useState<{ id: string; caminho: string } | null>(null);
   const [comando, setComando] = useState(typeof state?.comando === "string" ? state.comando : "");
   const [interpretando, setInterpretando] = useState(false);
   const [avisoIA, setAvisoIA] = useState("");
@@ -286,11 +288,12 @@ export default function NewAppointment() {
         avaliado: false,
       };
 
-      await createAppointment(appointmentData, { carregarDetalhes: false });
+      const agendamento = await createAppointment(appointmentData, { carregarDetalhes: false });
+      setLinkCliente({ id: agendamento.id, caminho: caminhoAgendamento(agendamento.id, agendamento.booking_token) });
 
       toast({
         title: "Sucesso!",
-        description: "Agendamento criado com sucesso"
+        description: "Horário reservado. Aguardando confirmação do cliente."
       });
 
       // Limpar formulário
@@ -349,6 +352,7 @@ export default function NewAppointment() {
           <h1 className="text-3xl font-bold">Novo Agendamento</h1>
           <p className="text-muted-foreground">Agende um horário para um cliente</p>
         </div>
+        {linkCliente && <LinkClienteAgendamento key={linkCliente.id} id={linkCliente.id} linkInicial={linkCliente.caminho} />}
 
         <Card className="max-w-2xl border-primary/25">
           <CardHeader>
