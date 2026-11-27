@@ -99,7 +99,7 @@ export default function Agenda() {
 
   return (
     <DashboardLayout>
-      <div className="p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 pb-24 md:pb-6">
+      <div className="space-y-3 p-3 sm:space-y-4 sm:p-4 md:p-6">
         {/* Compact Mobile Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -155,6 +155,7 @@ export default function Agenda() {
                       <button
                         key={day.data.toISOString()}
                         onClick={() => setSelectedDayIndex(index)}
+                        aria-pressed={isSelected}
                         className={cn(
                           'flex flex-col items-center min-w-[48px] py-2 px-3 rounded-xl transition-all',
                           isSelected

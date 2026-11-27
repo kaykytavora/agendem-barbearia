@@ -1,9 +1,8 @@
-import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Calendar, CalendarClock, Link as LinkIcon, Menu, Users, Scissors, MessageSquare, Settings, LogOut, Clock, User, Home, CreditCard } from "lucide-react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { LogOut, Menu } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,87 +12,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { dashboardNavigation, dashboardPrimaryLinks } from "@/lib/dashboard-navigation";
 
-const adminMenuItems = [
-  {
-    title: "Funcionários",
-    url: "/dashboard/funcionarios",
-    icon: Users,
-  },
-  {
-    title: "Serviços",
-    url: "/dashboard/servicos",
-    icon: Scissors,
-  },
-  {
-    title: "Férias",
-    url: "/dashboard/ferias",
-    icon: Calendar,
-  },
-  {
-    title: "Feedbacks",
-    url: "/dashboard/feedbacks",
-    icon: MessageSquare,
-  },
-  {
-    title: "Site Principal",
-    url: "/barbearias",
-    icon: Home,
-  },
-  {
-    title: "Configurações",
-    url: "/dashboard/settings",
-    icon: Settings,
-  },
-  {
-    title: "Configurações Pessoais",
-    url: "/dashboard/personal-settings",
-    icon: User,
-  },
-  {
-    title: "Assinatura",
-    url: "/dashboard/subscription",
-    icon: CreditCard,
-  },
-  {
-    title: "Compartilhar Perfil",
-    url: "/dashboard/share-profile",
-    icon: LinkIcon,
-  },
-];
-
-const funcionarioMenuItems = [
-  {
-    title: "Meus Horários",
-    url: "/dashboard/horarios",
-    icon: Clock,
-  },
-  {
-    title: "Férias",
-    url: "/dashboard/ferias",
-    icon: Calendar,
-  },
-  {
-    title: "Perfil",
-    url: "/dashboard/perfil",
-    icon: User,
-  },
-  {
-    title: "Site Principal",
-    url: "/barbearias",
-    icon: Home,
-  },
-  {
-    title: "Configurações",
-    url: "/dashboard/settings",
-    icon: Settings,
-  },
-  {
-    title: "Configurações Pessoais",
-    url: "/dashboard/personal-settings",
-    icon: Settings,
-  },
-];
+function navClass(active: boolean) {
+  return cn(
+    "flex h-auto min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-0.5 py-1 transition-colors",
+    active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+  );
+}
 
 export function MobileBottomNav() {
   const { role } = useUserRole();
@@ -102,8 +28,9 @@ export function MobileBottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isAdmin = role === 'admin';
-  const menuItems = isAdmin ? adminMenuItems : funcionarioMenuItems;
+  const { sections, quick, account } = dashboardNavigation(role === "admin");
+  const menuItems = [...sections, ...quick, ...account];
+  const menuActive = menuItems.some(({ url }) => url === location.pathname);
 
   const handleLogout = async () => {
     try {
@@ -142,64 +69,37 @@ export function MobileBottomNav() {
     }
   };
 
-  const isActive = (path: string) => {
-    if (path === '/dashboard') {
-      return location.pathname === '/dashboard';
-    }
-    return location.pathname.startsWith(path);
-  };
-
-  const getNavButtonClass = (path: string) => {
-    const active = isActive(path);
-    return cn(
-      "flex flex-col items-center justify-center p-2 rounded-lg transition-all duration-200 min-h-[60px] flex-1",
-      active
-        ? "bg-primary/10 text-primary"
-        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-    );
-  };
-
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-sm border-t border-border/50 px-2 py-1 safe-area-pb">
-      <div className="flex items-center justify-around max-w-md mx-auto">
-        <NavLink to="/dashboard" className={getNavButtonClass('/dashboard')} aria-label="Início" title="Início">
-          <LayoutDashboard className="w-5 h-5 mb-1" />
-          <span className="text-xs font-medium">Início</span>
-        </NavLink>
+    <nav aria-label="Navegação do painel" className="fixed inset-x-0 bottom-0 z-50 border-t border-border/50 bg-card/95 px-2 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:hidden">
+      <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
+        {dashboardPrimaryLinks.map(({ title, shortTitle, url, icon: Icon }) => (
+          <NavLink key={url} to={url} end aria-label={title} className={({ isActive }) => navClass(isActive)}>
+            <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+            <span className="max-w-full break-words text-center text-[10px] font-medium leading-tight min-[360px]:text-[11px] min-[390px]:text-xs">
+              {shortTitle ?? title}
+            </span>
+          </NavLink>
+        ))}
 
-        <NavLink to="/dashboard/agenda" className={getNavButtonClass('/dashboard/agenda')} aria-label="Agenda" title="Agenda">
-          <CalendarClock className="w-5 h-5 mb-1" />
-          <span className="text-xs font-medium">Agenda</span>
-        </NavLink>
-
-        {/* Agendamentos */}
-        <NavLink to="/dashboard/agendamentos" className={getNavButtonClass('/dashboard/agendamentos')} aria-label="Agendamentos" title="Agendamentos">
-          <Calendar className="w-5 h-5 mb-1" />
-          <span className="text-xs font-medium">Agendamentos</span>
-        </NavLink>
-
-        {/* Menu Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="flex flex-col items-center justify-center p-2 rounded-lg transition-all duration-200 min-h-[60px] flex-1 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              className={navClass(menuActive)}
             >
-              <Menu className="w-5 h-5 mb-1" />
+              <Menu className="h-5 w-5" aria-hidden="true" />
               <span className="text-xs font-medium">Menu</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 mb-2 max-h-80 overflow-y-auto">
-            <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-b">
-              Menu Principal
-            </div>
+          <DropdownMenuContent side="top" align="end" sideOffset={8} className="w-56 max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto overscroll-contain">
             {menuItems.map((item) => {
               const Icon = item.icon;
               return (
                 <DropdownMenuItem key={item.url} asChild>
                   <NavLink
                     to={item.url}
-                    className="flex items-center gap-3 w-full px-3 py-2.5 text-sm cursor-pointer hover:bg-muted/50 transition-colors"
+                    end
+                    className="flex items-center gap-3 w-full px-3 py-2.5 text-sm cursor-pointer hover:bg-muted/50 transition-colors aria-[current=page]:bg-primary/10 aria-[current=page]:text-primary"
                     aria-label={item.title}
                     title={item.title}
                   >
@@ -211,7 +111,7 @@ export function MobileBottomNav() {
             })}
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={handleLogout}
+              onSelect={() => void handleLogout()}
               className="flex items-center gap-3 px-3 py-2.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 cursor-pointer transition-colors"
             >
               <LogOut className="w-4 h-4" />
@@ -220,6 +120,6 @@ export function MobileBottomNav() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </div>
+    </nav>
   );
 }

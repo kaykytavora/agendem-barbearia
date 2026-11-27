@@ -163,15 +163,3 @@
 .animate-pulse-bg {
   animation: pulse-bg 2s ease-in-out;
 }
-
-/* Mobile Bottom Navigation Safe Area */
-.safe-area-pb {
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-/* Ensure mobile navbar is above other content */
-@media (max-width: 768px) {
-  .mobile-nav-container {
-    z-index: 9999;
-  }
-}

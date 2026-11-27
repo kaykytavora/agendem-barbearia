@@ -184,12 +184,12 @@ export function AssistenteBarbearia({ barbeariaId, admin }: { barbeariaId: strin
   return (
     <Sheet open={aberto} onOpenChange={setAberto}>
       <SheetTrigger asChild>
-        <Button size="icon" className="fixed bottom-24 right-4 z-40 h-14 w-14 rounded-full shadow-lg shadow-primary/25 md:bottom-6 md:right-6"
+        <Button size="icon" className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-4 z-40 h-12 w-12 rounded-full shadow-lg shadow-primary/25 md:bottom-6 md:right-6 md:h-14 md:w-14"
           aria-label="Abrir assistente da barbearia" title="Assistente da barbearia">
           <MessageCircle className="!h-6 !w-6" />
         </Button>
       </SheetTrigger>
-      <SheetContent side="bottom" className="flex h-[85dvh] w-full flex-col gap-0 rounded-t-2xl p-0 md:inset-x-auto md:bottom-24 md:right-6 md:h-[min(36rem,calc(100dvh_-_7rem))] md:w-[26rem] md:rounded-2xl md:border md:shadow-xl">
+      <SheetContent side="bottom" className="flex h-[85dvh] w-full flex-col gap-0 rounded-t-2xl p-0 pb-[env(safe-area-inset-bottom)] md:inset-x-auto md:bottom-24 md:right-6 md:h-[min(36rem,calc(100dvh_-_7rem))] md:w-[26rem] md:rounded-2xl md:border md:pb-0 md:shadow-xl">
         <SheetHeader className="border-b p-5 pr-12 text-left">
           <SheetTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Assistente da barbearia</SheetTitle>
           <SheetDescription>
@@ -211,8 +211,8 @@ export function AssistenteBarbearia({ barbeariaId, admin }: { barbeariaId: strin
               ))}
               {conversa.map(({ pergunta, resposta, linkCliente, cancelamento }, index) => (
                 <div key={index} className="space-y-2">
-                  <p className="ml-auto w-fit max-w-[90%] rounded-xl bg-primary px-3 py-2 text-sm text-primary-foreground">{pergunta}</p>
-                  {resposta && <p className="w-fit max-w-[95%] whitespace-pre-line rounded-xl bg-muted px-3 py-2 text-sm">{resposta}</p>}
+                  <p className="ml-auto w-fit max-w-[90%] rounded-xl bg-primary px-3 py-2 text-sm text-primary-foreground [overflow-wrap:anywhere]">{pergunta}</p>
+                  {resposta && <p className="w-fit max-w-[95%] whitespace-pre-line rounded-xl bg-muted px-3 py-2 text-sm [overflow-wrap:anywhere]">{resposta}</p>}
                   {linkCliente && <LinkClienteAgendamento id={linkCliente.id} linkInicial={linkCliente.caminho} />}
                   {cancelamento && <CancelamentoNoChat pedido={cancelamento} barbeariaId={barbeariaId} admin={admin} />}
                 </div>
