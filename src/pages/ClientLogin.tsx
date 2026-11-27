@@ -27,7 +27,11 @@ export default function ClientLogin() {
 
 	const { signIn, user, session, role, loading: authLoading } = useAuth();
 	const navigate = useNavigate();
-	const { search, hash } = useLocation();
+	const { search, hash, state } = useLocation();
+	const destino = typeof state?.voltarAoAgendamento === "string" &&
+		/^\/acompanhar-agendamento\/[0-9a-f-]{36}#[0-9a-f]{128}$/i.test(state.voltarAoAgendamento)
+		? state.voltarAoAgendamento
+		: "/client-panel";
 	const { toast } = useToast();
 	const bloqueioEmAndamento = useRef(false);
 	const bloqueadoPorGoogle = (role === "admin" || role === "funcionario") && sessaoSocial(session);
@@ -52,12 +56,12 @@ export default function ClientLogin() {
 				return;
 			}
 			if (role === 'cliente') {
-				navigate("/client-panel", { replace: true });
+				navigate(destino, { replace: true });
 			} else if (role === 'funcionario' || role === 'admin') {
 				navigate("/dashboard");
 			}
 		}
-	}, [user, authLoading, role, navigate, bloqueadoPorGoogle]);
+	}, [user, authLoading, role, navigate, destino, bloqueadoPorGoogle]);
 
 	async function entrarComGoogle() {
 		if (isLoading || entrandoComGoogle) return;

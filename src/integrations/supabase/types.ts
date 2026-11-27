@@ -14,6 +14,18 @@ export type Database = {
   }
   public: {
     Tables: {
+      programas_selos: {
+        Row: { barbearia_id: string; ativo: boolean; premio: string; meta: number; servicos: string[] }
+        Insert: { barbearia_id: string; ativo?: boolean; premio: string; meta: number; servicos: string[] }
+        Update: { barbearia_id?: string; ativo?: boolean; premio?: string; meta?: number; servicos?: string[] }
+        Relationships: [{
+          foreignKeyName: "programas_selos_barbearia_id_fkey"
+          columns: ["barbearia_id"]
+          isOneToOne: true
+          referencedRelation: "barbearias"
+          referencedColumns: ["id"]
+        }]
+      }
       agendamentos: {
         Row: {
           avaliado: boolean
@@ -892,6 +904,24 @@ export type Database = {
       }
     }
     Functions: {
+      salvar_programa_selos: {
+        Args: { p_barbearia: string; p_ativo: boolean; p_premio: string; p_meta: number; p_servicos: string[] }
+        Returns: undefined
+      }
+      registrar_selo_do_link: { Args: { p_id: string; p_token: string }; Returns: undefined }
+      meus_cartoes_selos: {
+        Args: never
+        Returns: { barbearia_id: string; nome: string; slug: string | null; ativo: boolean; premio: string; meta: number; saldo: number }[]
+      }
+      resgatar_premio_selos: {
+        Args: { p_barbearia: string; p_resgate: string; p_premio: string; p_meta: number }
+        Returns: string
+      }
+      listar_resgates_selos: {
+        Args: { p_barbearia?: string }
+        Returns: { id: string; barbearia: string; cliente: string; premio: string; criado_em: string; entregue_em: string | null }[]
+      }
+      entregar_premio_selos: { Args: { p_resgate: string }; Returns: undefined }
       gerenciar_agendamento: {
         Args: { p_id: string; p_acao: string; p_token?: string }
         Returns: Database["public"]["Enums"]["agendamento_status"]
