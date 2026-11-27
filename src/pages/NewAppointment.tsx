@@ -1,25 +1,21 @@
 import { useState, useEffect, useCallback } from "react";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, User, Plus } from "lucide-react";
+import { Calendar, User, Plus, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { createAppointment } from "@/integrations/supabase/api";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
-import {
-  dataLocalISO,
-  gerarHorarios,
-  horaNoDia,
-  ocupacoesDoDia,
-  pausasDoDia,
-  type Horario,
-  type HorarioOcupado,
-} from "@/lib/agenda";
+import { dataLocalISO, type Horario } from "@/lib/agenda";
 import type { HorarioDia } from "@/lib/horarios";
+import { encontrarPorNome, encontrarServico, extrairTelefone, interpretarAgendamentoSimples, mensagemErroAssistente, type RascunhoAgendamento } from "@/lib/agendamento-assistido";
+import { horariosDaEquipe } from "@/lib/agendamento-equipe";
 
 interface Service {
   id: string;
@@ -36,6 +32,8 @@ interface Employee {
 export default function NewAppointment() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const { state } = useLocation();
   const [barbeariaId, setBarbeariaId] = useState<string | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -44,6 +42,11 @@ export default function NewAppointment() {
   const [loadingTimes, setLoadingTimes] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [comando, setComando] = useState(typeof state?.comando === "string" ? state.comando : "");
+  const [interpretando, setInterpretando] = useState(false);
+  const [avisoIA, setAvisoIA] = useState("");
+  const [horaPedida, setHoraPedida] = useState("");
+  const [profissionalPendente, setProfissionalPendente] = useState(false);
 
   const [formData, setFormData] = useState({
     cliente_nome: "",
@@ -95,7 +98,7 @@ export default function NewAppointment() {
   }, [loadData]);
 
   // Com um único profissional na equipe, o agendamento é sempre dele
-  const funcionarioId = formData.funcionario_id || (employees.length === 1 ? employees[0].id : null);
+  const funcionarioId = formData.funcionario_id || (employees.length === 1 && !profissionalPendente ? employees[0].id : null);
   const servicoEscolhido = services.find((s) => s.id === formData.servico_id);
   const horarioDoDia = formData.data
     ? workingHours.find((h) => h.dia_semana === new Date(`${formData.data}T00:00:00`).getDay())
@@ -103,50 +106,12 @@ export default function NewAppointment() {
   const fechadoNoDia = !!formData.data && (!horarioDoDia || horarioDoDia.fechado || !horarioDoDia.hora_abre || !horarioDoDia.hora_fecha);
 
   const carregarHorarios = useCallback(async () => {
-    if (!barbeariaId || !formData.data || !servicoEscolhido || !horarioDoDia?.hora_abre || !horarioDoDia.hora_fecha || horarioDoDia.fechado) {
+    if (profissionalPendente || !barbeariaId || !formData.data || !servicoEscolhido || !horarioDoDia?.hora_abre || !horarioDoDia.hora_fecha || horarioDoDia.fechado) {
       return [];
     }
 
-    const dia = new Date(`${formData.data}T00:00:00`);
-    const diaSeguinte = new Date(dia);
-    diaSeguinte.setDate(dia.getDate() + 1);
-
-    const [ocupados, pausas, ausencias] = await Promise.all([
-      supabase.rpc('horarios_ocupados', {
-        p_barbearia_id: barbeariaId,
-        p_de: dia.toISOString(),
-        p_ate: diaSeguinte.toISOString(),
-      }),
-      supabase
-        .from('funcionario_pausas')
-        .select('funcionario_id, data, hora_inicio, hora_fim')
-        .eq('barbearia_id', barbeariaId)
-        .eq('data', formData.data),
-      funcionarioId
-        ? supabase
-            .from('funcionario_ausencias')
-            .select('id')
-            .eq('funcionario_id', funcionarioId)
-            .lte('data_inicio', formData.data)
-            .gte('data_fim', formData.data)
-        : Promise.resolve({ data: [], error: null }),
-    ]);
-
-    if (ocupados.error) throw ocupados.error;
-    if (pausas.error) throw pausas.error;
-    if (ausencias.error) throw ausencias.error;
-    if (ausencias.data && ausencias.data.length > 0) return [];
-
-    return gerarHorarios({
-      abre: horaNoDia(dia, horarioDoDia.hora_abre),
-      fecha: horaNoDia(dia, horarioDoDia.hora_fecha),
-      duracaoMin: servicoEscolhido.duracao_minutos,
-      ocupados: [
-        ...ocupacoesDoDia((ocupados.data ?? []) as HorarioOcupado[], dia, funcionarioId),
-        ...pausasDoDia(pausas.data ?? [], dia, funcionarioId, employees.length),
-      ],
-    });
-  }, [barbeariaId, formData.data, servicoEscolhido, horarioDoDia, funcionarioId, employees.length]);
+    return horariosDaEquipe(barbeariaId, formData.data, servicoEscolhido.duracao_minutos, horarioDoDia, funcionarioId, employees.length);
+  }, [barbeariaId, formData.data, servicoEscolhido, horarioDoDia, funcionarioId, employees.length, profissionalPendente]);
 
   useEffect(() => {
     let cancelado = false;
@@ -157,9 +122,11 @@ export default function NewAppointment() {
         if (cancelado) return;
         setAvailableTimes(horarios);
         // O horário escolhido pode ter deixado de valer ao trocar data, serviço ou profissional
-        setFormData((prev) =>
-          horarios.some((h) => h.time === prev.hora && h.isAvailable) ? prev : { ...prev, hora: "" }
-        );
+        setFormData((prev) => {
+          const candidata = prev.hora || horaPedida;
+          const hora = horarios.some((h) => h.time === candidata && h.isAvailable) ? candidata : "";
+          return hora === prev.hora ? prev : { ...prev, hora };
+        });
       })
       .catch((error) => {
         if (cancelado) return;
@@ -178,7 +145,74 @@ export default function NewAppointment() {
     return () => {
       cancelado = true;
     };
-  }, [carregarHorarios, toast]);
+  }, [carregarHorarios, horaPedida, toast]);
+
+  const interpretarPedido = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!comando.trim() || interpretando || isSubmitting) return;
+
+    setInterpretando(true);
+    setAvisoIA("");
+    try {
+      const hoje = dataLocalISO(new Date());
+      const { telefone, comando: comandoSemTelefone } = extrairTelefone(comando.trim());
+      let rascunho = interpretarAgendamentoSimples(comando);
+      if (!rascunho) {
+        const { data, error } = await supabase.functions.invoke<RascunhoAgendamento>(
+          "ai-appointment-draft",
+          { body: { comando: comandoSemTelefone, hoje } },
+        );
+        if (error) throw error;
+        rascunho = data;
+      }
+      if (!rascunho || !Object.values(rascunho).some(Boolean)) {
+        setAvisoIA("Descreva o agendamento com o nome do cliente, o serviço e o horário.");
+        return;
+      }
+
+      const servico = encontrarServico(services, rascunho.servico);
+      const profissional = encontrarPorNome(employees, rascunho.profissional);
+      const dataPedida = rascunho.data ?? hoje;
+      const dia = new Date(`${dataPedida}T00:00:00`);
+      const data = /^\d{4}-\d{2}-\d{2}$/.test(dataPedida) && dataLocalISO(dia) === dataPedida && dataPedida >= hoje
+        ? dataPedida
+        : "";
+      const hora = /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(rascunho.hora ?? "") ? rascunho.hora ?? "" : "";
+      const profissionalNaoEncontrado = Boolean(rascunho.profissional && !profissional);
+      const revisarProfissional = profissionalNaoEncontrado && employees.length > 0;
+      const cliente = rascunho.cliente ?? "";
+      const mesmoHorarioConsultado = !loadingTimes && !revisarProfissional && !profissionalPendente &&
+        formData.data === data && formData.servico_id === servico?.id &&
+        formData.funcionario_id === (profissional?.id ?? "");
+      const horaJaVerificada = mesmoHorarioConsultado &&
+        availableTimes.some((slot) => slot.time === hora && slot.isAvailable);
+
+      setProfissionalPendente(revisarProfissional);
+      setHoraPedida(hora);
+      setFormData((prev) => ({
+        cliente_nome: cliente,
+        cliente_telefone: telefone ?? (cliente && cliente === prev.cliente_nome ? prev.cliente_telefone : ""),
+        cliente_email: cliente && cliente === prev.cliente_nome ? prev.cliente_email : "",
+        servico_id: servico?.id ?? "",
+        funcionario_id: profissional?.id ?? "",
+        data,
+        hora: horaJaVerificada ? hora : "",
+      }));
+      const avisos = [
+        !rascunho.data && "Usei a data de hoje.",
+        !data && "Escolha uma data válida.",
+        rascunho.servico && !servico && `Confira qual serviço corresponde a “${rascunho.servico}”.`,
+        revisarProfissional && `Selecione o profissional correspondente a “${rascunho.profissional}”.`,
+        profissionalNaoEncontrado && !employees.length && "Nenhum profissional cadastrado para este agendamento.",
+        "Revise o formulário e informe o telefone do cliente.",
+      ];
+      setAvisoIA(avisos.filter(Boolean).join(" "));
+    } catch (erro) {
+      setAvisoIA(await mensagemErroAssistente(erro));
+    } finally {
+      setInterpretando(false);
+    }
+  };
 
   const formatPhoneNumber = (phone: string) => {
     const cleaned = (phone || '').replace(/\D/g, '');
@@ -197,7 +231,9 @@ export default function NewAppointment() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.cliente_nome || !formData.cliente_telefone || !formData.servico_id || !formData.data || !formData.hora) {
+    if (isSubmitting || interpretando) return;
+
+    if (profissionalPendente || !formData.cliente_nome || !formData.cliente_telefone || !formData.servico_id || !formData.data || !formData.hora) {
       toast({
         title: "Campos obrigatórios",
         description: "Preencha todos os campos obrigatórios",
@@ -229,6 +265,13 @@ export default function NewAppointment() {
     setIsSubmitting(true);
 
     try {
+      const horarios = await carregarHorarios();
+      setAvailableTimes(horarios);
+      if (!horarios.some((horario) => horario.time === formData.hora && horario.isAvailable)) {
+        setFormData((prev) => ({ ...prev, hora: "" }));
+        throw new Error("Esse horário está indisponível. Escolha outro.");
+      }
+
       const dataHora = new Date(`${formData.data}T${formData.hora}:00`).toISOString();
 
       const appointmentData = {
@@ -243,7 +286,7 @@ export default function NewAppointment() {
         avaliado: false,
       };
 
-      await createAppointment(appointmentData);
+      await createAppointment(appointmentData, { carregarDetalhes: false });
 
       toast({
         title: "Sucesso!",
@@ -251,6 +294,9 @@ export default function NewAppointment() {
       });
 
       // Limpar formulário
+      setHoraPedida("");
+      setAvisoIA("");
+      setComando("");
       setFormData({
         cliente_nome: "",
         cliente_telefone: "",
@@ -303,6 +349,33 @@ export default function NewAppointment() {
           <h1 className="text-3xl font-bold">Novo Agendamento</h1>
           <p className="text-muted-foreground">Agende um horário para um cliente</p>
         </div>
+
+        <Card className="max-w-2xl border-primary/25">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Agendar com IA
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={interpretarPedido} className="space-y-3">
+              <Label htmlFor="comando-agendamento">Descreva o agendamento</Label>
+              <Textarea
+                id="comando-agendamento"
+                value={comando}
+                onChange={(e) => setComando(e.target.value)}
+                placeholder="Agende um corte de cabelo amanhã às 13:00 para Kayky com Daniel."
+                maxLength={500}
+                autoFocus={searchParams.get("assistente") === "1"}
+                disabled={interpretando || isSubmitting}
+              />
+              <Button type="submit" variant="secondary" disabled={!comando.trim() || interpretando || isSubmitting}>
+                {interpretando ? "Interpretando pedido..." : "Preencher formulário"}
+              </Button>
+              {avisoIA && <p className="text-sm text-muted-foreground" role="status">{avisoIA}</p>}
+            </form>
+          </CardContent>
+        </Card>
 
         <Card className="max-w-2xl border-border/50 bg-card/50 backdrop-blur-sm">
           <CardHeader>
@@ -383,14 +456,17 @@ export default function NewAppointment() {
                     </Select>
                   </div>
 
-                  {employees.length > 1 && (
+                  {(employees.length > 1 || profissionalPendente) && (
                     <div>
-                      <Label htmlFor="funcionario_id">Profissional (opcional)</Label>
+                      <Label htmlFor="funcionario_id">{profissionalPendente ? "Profissional *" : "Profissional (opcional)"}</Label>
                       <Select
                         value={formData.funcionario_id}
-                        onValueChange={(value) => setFormData(prev => ({ ...prev, funcionario_id: value }))}
+                        onValueChange={(value) => {
+                          setProfissionalPendente(false);
+                          setFormData(prev => ({ ...prev, funcionario_id: value }));
+                        }}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger id="funcionario_id">
                           <SelectValue placeholder="Qualquer profissional" />
                         </SelectTrigger>
                         <SelectContent>
@@ -401,6 +477,12 @@ export default function NewAppointment() {
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+                  )}
+                  {employees.length === 1 && !profissionalPendente && (
+                    <div>
+                      <Label htmlFor="profissional-unico">Profissional</Label>
+                      <Input id="profissional-unico" value={employees[0].nome} readOnly />
                     </div>
                   )}
                 </div>
@@ -444,6 +526,11 @@ export default function NewAppointment() {
                         ))}
                       </SelectContent>
                     </Select>
+                    {horaPedida && formData.data && formData.servico_id && !profissionalPendente && !loadingTimes && !formData.hora && (
+                      <p role="status" className="mt-1 text-sm text-muted-foreground">
+                        {horaPedida} está indisponível. Escolha outro horário.
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -451,7 +538,7 @@ export default function NewAppointment() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={isSubmitting}
+                disabled={isSubmitting || interpretando || loadingTimes || profissionalPendente}
               >
                 {isSubmitting ? "Criando agendamento..." : "Criar Agendamento"}
               </Button>
