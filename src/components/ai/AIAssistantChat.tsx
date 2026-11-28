@@ -13,11 +13,14 @@ import {
   Star,
   MapPin,
   Calendar,
+  Clock,
+  Scissors,
   Bot,
   User,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 interface Mensagem {
@@ -37,14 +40,18 @@ interface BarbeariaCard {
   total_avaliacoes: number;
   servicos_encontrados: string[];
   preco_estimado?: number;
+  endereco?: string;
+  funcionamento_hoje?: string;
+  proximos_horarios?: { dia: string; horas: string[] }[];
+  no_seu_bairro?: boolean;
 }
 
 // ─── Sugestões rápidas ───────────────────────────────────────────────────────
 const SUGESTOES = [
-  "Degradê com barba até R$ 60",
-  "Corte infantil perto de mim",
-  "Quem faz tranças?",
-  "Melhor avaliada da cidade",
+  "Corte com barba até R$ 60",
+  "Tem horário amanhã de manhã?",
+  "A mais bem avaliada perto de mim",
+  "Corte infantil hoje à tarde",
 ];
 
 // ─── Card de barbearia no chat ───────────────────────────────────────────────
@@ -55,57 +62,73 @@ function BarbeariaResultCard({
   barbearia: BarbeariaCard;
   onAgendar: (slug: string) => void;
 }) {
+  const proximo = barbearia.proximos_horarios?.[0];
   return (
-    <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm p-3 mt-2 hover:border-primary/50 transition-colors">
+    <div className="mt-2 rounded-2xl border border-border/70 bg-card p-3 shadow-brand-sm transition-colors hover:border-primary/50">
       <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm text-foreground truncate">
-            {barbearia.nome}
-          </p>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            {barbearia.nota_media > 0 && (
-              <span className="flex items-center gap-1 text-xs text-amber-500">
-                <Star className="w-3 h-3 fill-amber-500" />
-                {barbearia.nota_media.toFixed(1)}
-                <span className="text-muted-foreground">
-                  ({barbearia.total_avaliacoes})
-                </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-foreground">{barbearia.nome}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
+            {barbearia.total_avaliacoes > 0 ? (
+              <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                <Star className="h-3 w-3 fill-current" aria-hidden="true" />
+                {barbearia.nota_media.toFixed(1).replace(".", ",")}
+                <span className="text-muted-foreground">({barbearia.total_avaliacoes})</span>
               </span>
+            ) : (
+              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">Nova</span>
             )}
-            {barbearia.cidade && (
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <MapPin className="w-3 h-3" />
-                {barbearia.bairro ?? barbearia.cidade}
+            <span className="flex items-center gap-1">
+              <MapPin className="h-3 w-3" aria-hidden="true" />
+              {barbearia.bairro ?? barbearia.cidade}
+              {barbearia.no_seu_bairro && <span className="font-medium text-primary">· seu bairro</span>}
+            </span>
+            {barbearia.funcionamento_hoje && (
+              <span className="flex items-center gap-1">
+                <Clock className="h-3 w-3" aria-hidden="true" />
+                {barbearia.funcionamento_hoje}
               </span>
-            )}
-            {barbearia.preco_estimado && barbearia.preco_estimado > 0 && (
-              <Badge variant="secondary" className="text-xs h-5">
-                R$ {barbearia.preco_estimado.toFixed(0)}
-              </Badge>
             )}
           </div>
-          {barbearia.servicos_encontrados.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {barbearia.servicos_encontrados.map((s) => (
-                <Badge
-                  key={s}
-                  variant="outline"
-                  className="text-xs h-5 capitalize"
-                >
-                  ✂️ {s}
-                </Badge>
-              ))}
-            </div>
-          )}
         </div>
+        {barbearia.preco_estimado !== undefined && barbearia.preco_estimado > 0 && (
+          <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+            {barbearia.preco_estimado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+          </span>
+        )}
       </div>
-      <Button
-        size="sm"
-        className="w-full mt-3 h-8 text-xs"
-        onClick={() => onAgendar(barbearia.slug)}
-      >
-        <Calendar className="w-3 h-3 mr-1" />
-        Ver horários
+
+      {barbearia.servicos_encontrados.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {barbearia.servicos_encontrados.map((servico) => (
+            <Badge key={servico} variant="outline" className="h-5 gap-1 text-[11px] font-normal">
+              <Scissors className="h-2.5 w-2.5" aria-hidden="true" /> {servico}
+            </Badge>
+          ))}
+        </div>
+      )}
+
+      {proximo && (
+        <div className="mt-2.5">
+          <p className="mb-1 text-[11px] text-muted-foreground">Horários livres {proximo.dia}</p>
+          <div className="flex flex-wrap gap-1">
+            {proximo.horas.map((hora) => (
+              <button
+                key={hora}
+                type="button"
+                onClick={() => onAgendar(barbearia.slug)}
+                className="rounded-lg border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/10"
+              >
+                {hora}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <Button size="sm" className="mt-3 h-8 w-full text-xs" onClick={() => onAgendar(barbearia.slug)}>
+        <Calendar className="mr-1 h-3 w-3" aria-hidden="true" />
+        Ver horários e agendar
       </Button>
     </div>
   );
@@ -113,12 +136,13 @@ function BarbeariaResultCard({
 
 // ─── Componente principal ────────────────────────────────────────────────────
 export function AIAssistantChat({ onClose }: { onClose: () => void }) {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [mensagens, setMensagens] = useState<Mensagem[]>([
     {
       role: "model",
       content:
-        "Olá! 👋 Me conte o que você quer fazer e te indico a barbearia ideal. Pode descrever o corte, orçamento ou cidade!",
+        "Olá! Me conte o serviço, o orçamento ou quando você quer ir, e eu indico as melhores barbearias com horários livres.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -165,6 +189,9 @@ export function AIAssistantChat({ onClose }: { onClose: () => void }) {
           body: {
             mensagem: mensagemTexto,
             historico,
+            regiao: user?.user_metadata?.cidade
+              ? { bairro: user.user_metadata.bairro ?? null, cidade: user.user_metadata.cidade }
+              : null,
           },
         }
       );
@@ -186,7 +213,7 @@ export function AIAssistantChat({ onClose }: { onClose: () => void }) {
         {
           role: "model",
           content:
-            "Desculpe, tive um problema ao buscar as barbearias. Tente novamente em instantes! 🙏",
+            "Desculpe, tive um problema ao buscar as barbearias. Tente novamente em instantes.",
         },
       ]);
     } finally {
@@ -297,7 +324,7 @@ export function AIAssistantChat({ onClose }: { onClose: () => void }) {
                 <div className="flex items-center gap-1">
                   <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
                   <span className="text-xs text-muted-foreground">
-                    Buscando barbearias...
+                    Procurando barbearias e horários...
                   </span>
                 </div>
               </div>
@@ -308,7 +335,7 @@ export function AIAssistantChat({ onClose }: { onClose: () => void }) {
           {mensagens.length === 1 && !carregando && (
             <div className="ml-9 mt-2">
               <p className="text-xs text-muted-foreground mb-2">
-                💡 Exemplos rápidos:
+                Experimente perguntar:
               </p>
               <div className="flex flex-wrap gap-2">
                 {SUGESTOES.map((s) => (
