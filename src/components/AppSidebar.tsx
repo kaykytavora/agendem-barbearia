@@ -1,4 +1,5 @@
 import { AgendemIcon } from "@/components/AgendemIcon";
+import { PillDeslizante } from "@/components/PillDeslizante";
 import { NavLink } from "react-router-dom";
 import { ChevronUp, LogOut } from "lucide-react";
 import {
@@ -52,10 +53,9 @@ export function AppSidebar() {
     }
   };
 
-  const getNavCls = ({ isActive }: { isActive: boolean }) =>
-    isActive
-      ? "bg-primary text-primary-foreground font-medium shadow-brand-sm hover:bg-primary hover:text-primary-foreground"
-      : "text-muted-foreground hover:bg-muted hover:text-foreground";
+  // O SidebarMenuButton (asChild) não repassa a função de className do NavLink,
+  // então o estado ativo é estilizado pelo aria-current que o NavLink coloca.
+  const itemMenu = "flex items-center gap-3 rounded-xl px-3 py-2.5 text-muted-foreground transition-colors duration-500 hover:bg-muted/60 hover:text-foreground aria-[current=page]:bg-transparent aria-[current=page]:font-medium aria-[current=page]:text-primary-foreground aria-[current=page]:hover:bg-transparent aria-[current=page]:hover:text-primary-foreground aria-[current=page]:active:bg-transparent";
 
   const handleLogout = async () => {
     try {
@@ -131,6 +131,7 @@ export function AppSidebar() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
               >
+                <PillDeslizante id="painel-menu">
                 <SidebarMenu className="gap-1">
                   {authLoading ? (
                     <>
@@ -150,7 +151,7 @@ export function AppSidebar() {
                           <NavLink
                             to={item.url}
                             end
-                            className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${getNavCls({ isActive })}`}
+                            className={itemMenu}
                             onClick={handleItemClick} // Close sidebar on mobile
                             aria-label={item.title}
                             title={item.title}
@@ -163,6 +164,7 @@ export function AppSidebar() {
                     ))
                   )}
                 </SidebarMenu>
+                </PillDeslizante>
               </motion.div>
             </AnimatePresence>
           </SidebarGroupContent>
@@ -171,6 +173,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>Atalhos</SidebarGroupLabel>
           <SidebarGroupContent>
+            <PillDeslizante id="painel-atalhos">
             <SidebarMenu>
               {quick.map((item) => (
                 <SidebarMenuItem key={item.url}>
@@ -178,7 +181,7 @@ export function AppSidebar() {
                     <NavLink
                       to={item.url}
                       end
-                      className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${getNavCls({ isActive })}`}
+                      className={itemMenu}
                       onClick={handleItemClick}
                       aria-label={item.title}
                       title={item.title}
@@ -190,6 +193,7 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
+            </PillDeslizante>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>

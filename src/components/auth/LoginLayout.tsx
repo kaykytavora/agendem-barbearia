@@ -1,6 +1,7 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ArrowLeft, ArrowRight, Check, MapPin, Store, UserRound } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import { AgendemIcon } from "@/components/AgendemIcon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
@@ -61,6 +62,41 @@ function Marca({ profissional = false }: { profissional?: boolean }) {
   );
 }
 
+type FaseLamina = "parada" | "cobrindo" | "revelando";
+
+/** Seletor "Cliente | Barbearia" com destaque deslizante. */
+function SeletorAcesso({ acesso, onTrocar }: { acesso: keyof typeof conteudo; onTrocar: (destino: keyof typeof conteudo) => void }) {
+  const opcoes = [
+    { id: "cliente" as const, rotulo: "Cliente", Icone: UserRound },
+    { id: "barbearia" as const, rotulo: "Barbearia", Icone: Store },
+  ];
+  return (
+    <div role="tablist" aria-label="Tipo de acesso" className="relative grid grid-cols-2 rounded-xl bg-muted p-1">
+      <span
+        aria-hidden="true"
+        className="absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-lg bg-card shadow-brand-sm transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+        style={{ transform: acesso === "barbearia" ? "translateX(100%)" : "translateX(0)" }}
+      />
+      {opcoes.map(({ id, rotulo, Icone }) => (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          aria-selected={acesso === id}
+          onClick={() => acesso !== id && onTrocar(id)}
+          className={cn(
+            "relative z-10 flex min-h-10 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            acesso === id ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <Icone aria-hidden="true" className="h-4 w-4" />
+          {rotulo}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 interface LoginLayoutProps {
   acesso: keyof typeof conteudo;
   recuperacao?: keyof typeof recuperacaoConteudo;
@@ -70,18 +106,38 @@ interface LoginLayoutProps {
 export function LoginLayout({ acesso, recuperacao, children }: LoginLayoutProps) {
   const info = conteudo[acesso];
   const profissional = acesso === "barbearia";
-  const IconeOutroAcesso = info.iconeOutroAcesso;
   const cabecalho = recuperacao ? recuperacaoConteudo[recuperacao] : info;
   const permiteNavegar = !profissional && !recuperacao;
   const voltar = recuperacao && profissional ? "/login" : "/client-login";
+  const navigate = useNavigate();
+  const location = useLocation();
+  // Chegando pela troca de acesso, a lâmina começa cobrindo o card e termina de passar
+  const [lamina, setLamina] = useState<FaseLamina>(() => (location.state as { lamina?: boolean } | null)?.lamina ? "revelando" : "parada");
+
+  useEffect(() => {
+    if (lamina !== "revelando") return;
+    const id = window.setTimeout(() => setLamina("parada"), 1150);
+    return () => window.clearTimeout(id);
+  }, [lamina]);
+
+  function trocarAcesso(destino: keyof typeof conteudo) {
+    const rota = destino === "barbearia" ? "/login" : "/client-login";
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      navigate(rota);
+      return;
+    }
+    setLamina("cobrindo");
+    window.setTimeout(() => navigate(rota, { state: { lamina: true } }), 650);
+  }
 
   return (
     <div className="grid min-h-svh grid-cols-1 bg-background text-foreground lg:grid-cols-2">
       <aside
+        data-lamina={lamina === "parada" ? undefined : lamina}
         className="login-hero relative isolate hidden overflow-hidden text-[#fafaf9] lg:flex lg:items-center"
         style={{ backgroundImage: `linear-gradient(90deg, #122a22f2 0%, #142e24c9 42%, #192d2759 100%), url(${info.imagem})` }}
       >
-        <div className="relative w-full max-w-[38rem] px-[clamp(2.5rem,6vw,6rem)] py-12">
+        <div className="login-hero-texto relative w-full max-w-[38rem] px-[clamp(2.5rem,6vw,6rem)] py-12">
           <Marca profissional={profissional} />
           <div className="mt-14">
             <div aria-hidden="true" className="mb-5 h-1 w-8 rounded-full bg-[#a4ddbf]" />
@@ -101,22 +157,25 @@ export function LoginLayout({ acesso, recuperacao, children }: LoginLayoutProps)
         </div>
       </aside>
 
-      <main className={`login-main grid min-w-0 grid-cols-1 px-4 py-3 sm:px-8 lg:px-10 ${permiteNavegar ? "grid-rows-1" : "grid-rows-[auto_1fr]"}`}>
-        {!permiteNavegar && (
+      <main className={`login-main grid min-w-0 grid-cols-1 px-4 py-3 sm:px-8 lg:px-10 ${!recuperacao ? "grid-rows-1" : "grid-rows-[auto_1fr]"}`}>
+        {recuperacao && (
           <div className="mx-auto w-full max-w-[29rem] lg:max-w-none">
             <Link
               to={voltar}
               className="inline-flex min-h-11 items-center gap-2 rounded-md px-1 text-sm font-medium text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <ArrowLeft aria-hidden="true" className="h-4 w-4" />
-              {recuperacao ? "Voltar ao login" : "Voltar ao login do cliente"}
+              Voltar ao login
             </Link>
           </div>
         )}
         <div className="mx-auto flex w-full max-w-[29rem] items-center">
-          <Card variant="glass" className="page-enter w-full min-w-0 rounded-[1.4rem] border-border/80 shadow-brand-lg">
+          <Card variant="glass" data-lamina={lamina === "parada" ? undefined : lamina}
+            className={cn("login-card relative w-full min-w-0 overflow-hidden rounded-[1.4rem] border-border/80 shadow-brand-lg", lamina === "parada" && !location.state && "page-enter")}>
+            {lamina !== "parada" && <span aria-hidden="true" className="login-lamina" data-fase={lamina} />}
             <CardHeader className="gap-3 space-y-0 p-4 sm:p-6 sm:pb-4">
               <Marca profissional={profissional} />
+              {!recuperacao && <SeletorAcesso acesso={acesso} onTrocar={trocarAcesso} />}
               <div>
                 <h1 className="text-pretty text-[1.65rem] font-bold leading-tight tracking-[-0.045em] sm:text-3xl">
                   {cabecalho.titulo}
@@ -143,13 +202,6 @@ export function LoginLayout({ acesso, recuperacao, children }: LoginLayoutProps)
                       {info.textoCadastro}
                     </Link>
                   </p>
-                  <Button asChild variant="outline" className="min-h-11 w-full justify-start rounded-lg bg-background/55 px-3">
-                    <Link to={info.outroAcesso}>
-                      <IconeOutroAcesso aria-hidden="true" className="text-primary" />
-                      {info.textoOutroAcesso}
-                      <ArrowRight aria-hidden="true" className="ml-auto text-primary" />
-                    </Link>
-                  </Button>
                 </>
               )}
             </CardContent>

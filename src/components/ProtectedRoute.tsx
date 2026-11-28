@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import PageLoader from "./PageLoader";
 import TrocarSenhaProvisoria from "./TrocarSenhaProvisoria";
 import { sessaoSocial } from "@/lib/login-google";
+import { useNivelMfa } from "@/lib/mfa";
+import { VerificacaoMfa } from "./auth/VerificacaoMfa";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -13,8 +15,10 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
   const { user, session, profile, role, loading, profileError } = useAuth(); // 'loading' espera pelo perfil
+  const equipe = role === "admin" || role === "funcionario";
+  const mfa = useNivelMfa(!!user && equipe);
 
-  if (loading) {
+  if (loading || (equipe && mfa.isLoading)) {
     return <PageLoader />;
   }
 
@@ -38,6 +42,11 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
         <Button onClick={() => window.location.reload()}>Tentar novamente</Button>
       </div>
     );
+  }
+
+  // Equipe com verificação em duas etapas ativada: só entra depois do código do app
+  if (equipe && mfa.data?.precisaCodigo) {
+    return <VerificacaoMfa />;
   }
 
   // Funcionário ainda com a senha definida pelo dono: nada é liberado antes da troca.

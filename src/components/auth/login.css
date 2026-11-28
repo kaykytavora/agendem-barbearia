@@ -10,3 +10,116 @@
 .login-main {
   background: radial-gradient(ellipse at 50% 30%, hsl(var(--accent) / 0.52), transparent 68%), hsl(var(--background));
 }
+
+/* Troca entre login do cliente e da barbearia: uma lâmina inclinada varre o card.
+   Na ida ela cobre o card (a página troca por baixo); na chegada ela termina de passar
+   e o conteúdo novo entra em cascata. */
+.login-lamina {
+  position: absolute;
+  inset: -12% -60%;
+  z-index: 30;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent 0%, hsl(152 60% 80% / 0.9) 0.6%, transparent 1.6%),
+    linear-gradient(90deg, transparent 98.4%, hsl(152 60% 80% / 0.7) 99.4%, transparent 100%),
+    linear-gradient(90deg, #0f241d 0%, #1f4b3b 45%, #2a6450 55%, #0f241d 100%);
+  box-shadow: 0 0 60px 10px hsl(152 50% 35% / 0.35);
+  transform: skewX(-20deg) translateX(-150%);
+}
+.login-lamina::after {
+  /* brilho que corre pela lâmina */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 35%, hsl(0 0% 100% / 0.14) 50%, transparent 65%);
+  animation: lamina-brilho 900ms ease-in-out infinite;
+}
+.login-lamina[data-fase="cobrindo"] { animation: lamina-cobrir 650ms cubic-bezier(0.7, -0.25, 0.75, 0.25) forwards; }
+.login-lamina[data-fase="revelando"] { animation: lamina-revelar 850ms cubic-bezier(0.2, 0.75, 0.25, 1.05) forwards; }
+
+@keyframes lamina-cobrir {
+  from { transform: skewX(-20deg) translateX(-150%); }
+  to { transform: skewX(-20deg) translateX(0); }
+}
+@keyframes lamina-revelar {
+  0% { transform: skewX(-20deg) translateX(0); }
+  100% { transform: skewX(-20deg) translateX(150%); }
+}
+@keyframes lamina-brilho {
+  from { transform: translateX(-60%); }
+  to { transform: translateX(60%); }
+}
+
+/* Card reage: recua um pouco enquanto é coberto e assenta com um leve quique ao revelar */
+.login-card[data-lamina="cobrindo"] { animation: card-recua 650ms cubic-bezier(0.5, 0, 0.75, 0) forwards; }
+.login-card[data-lamina="revelando"] { animation: card-assenta 850ms cubic-bezier(0.34, 1.4, 0.64, 1); }
+.login-card[data-lamina="cobrindo"] > :not(.login-lamina) { transition: opacity 400ms ease, filter 400ms ease; opacity: 0.35; filter: blur(2px); }
+.login-card[data-lamina="revelando"] > :not(.login-lamina) > * { animation: conteudo-entra 650ms cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.login-card[data-lamina="revelando"] > :not(.login-lamina) > *:nth-child(1) { animation-delay: 250ms; }
+.login-card[data-lamina="revelando"] > :not(.login-lamina) > *:nth-child(2) { animation-delay: 330ms; }
+.login-card[data-lamina="revelando"] > :not(.login-lamina) > *:nth-child(3) { animation-delay: 410ms; }
+.login-card[data-lamina="revelando"] > :not(.login-lamina) > *:nth-child(n+4) { animation-delay: 490ms; }
+
+@keyframes card-recua {
+  to { transform: scale(0.97) rotate(-0.4deg); }
+}
+@keyframes card-assenta {
+  0% { transform: scale(0.97) rotate(0.4deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+@keyframes conteudo-entra {
+  from { opacity: 0; transform: translateX(18px); filter: blur(3px); }
+  to { opacity: 1; transform: translateX(0); filter: blur(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-lamina { display: none; }
+  .login-card[data-lamina] { animation: none !important; }
+  .login-card[data-lamina] > * , .login-card[data-lamina] > * > * { animation: none !important; opacity: 1 !important; filter: none !important; }
+}
+
+/* Foto lateral acompanha a lâmina: na ida aproxima e escurece; na chegada a foto nova
+   é revelada por um corte inclinado, com zoom assentando e o texto entrando em cascata. */
+.login-hero[data-lamina="cobrindo"] {
+  animation: hero-sai 650ms cubic-bezier(0.55, 0, 0.75, 0.2) forwards;
+}
+.login-hero[data-lamina="cobrindo"] .login-hero-texto {
+  transition: opacity 450ms ease, transform 650ms cubic-bezier(0.55, 0, 0.75, 0.2), filter 450ms ease;
+  opacity: 0;
+  transform: translateX(-40px);
+  filter: blur(4px);
+}
+.login-hero[data-lamina="revelando"] {
+  animation: hero-entra 1100ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.login-hero[data-lamina="revelando"] .login-hero-texto > * {
+  animation: hero-texto-entra 800ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.login-hero[data-lamina="revelando"] .login-hero-texto > *:nth-child(1) { animation-delay: 380ms; }
+.login-hero[data-lamina="revelando"] .login-hero-texto > *:nth-child(2) { animation-delay: 500ms; }
+
+@keyframes hero-sai {
+  to { background-position: 54% center; filter: brightness(0.45) saturate(0.8); }
+}
+@keyframes hero-entra {
+  0% {
+    clip-path: polygon(0 0, 0 0, -20% 100%, -20% 100%);
+    background-position: 80% center;
+    filter: brightness(0.5);
+  }
+  55% { clip-path: polygon(0 0, 120% 0, 100% 100%, -20% 100%); }
+  100% {
+    clip-path: polygon(0 0, 120% 0, 100% 100%, -20% 100%);
+    background-position: 66% center;
+    filter: brightness(1);
+  }
+}
+@keyframes hero-texto-entra {
+  from { opacity: 0; transform: translateY(24px); filter: blur(4px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-hero[data-lamina], .login-hero[data-lamina] .login-hero-texto,
+  .login-hero[data-lamina] .login-hero-texto > * { animation: none !important; transition: none !important; opacity: 1 !important; transform: none !important; filter: none !important; }
+}

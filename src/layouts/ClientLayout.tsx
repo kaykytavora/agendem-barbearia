@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { CalendarDays, HelpCircle, Home, LogOut, Search, Settings, type LucideIcon } from "lucide-react";
 import { AgendemIcon } from "@/components/AgendemIcon";
+import { PillDeslizante } from "@/components/PillDeslizante";
 import { AIAssistantButton } from "@/components/ai/AIAssistantButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -49,15 +50,16 @@ export function ClientLayout({ children, onAjuda }: ClientLayoutProps) {
           <span className="font-display text-lg font-bold tracking-tight">Agendem</span>
         </div>
 
-        <nav aria-label="Navegação do cliente" className="flex-1 space-y-1 px-3">
+        <nav aria-label="Navegação do cliente" className="flex-1 px-3">
+          <PillDeslizante id="cliente" className="space-y-1">
           {ITENS.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
               className={({ isActive }) => cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-500",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                isActive ? "bg-primary text-primary-foreground shadow-brand-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                isActive ? "text-primary-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
               )}
             >
               <Icon className="h-4 w-4" aria-hidden="true" />
@@ -74,6 +76,7 @@ export function ClientLayout({ children, onAjuda }: ClientLayoutProps) {
               Como funciona
             </button>
           )}
+          </PillDeslizante>
         </nav>
 
         <div className="space-y-3 border-t border-border/60 p-4">

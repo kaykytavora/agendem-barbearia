@@ -22,6 +22,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { usePhoneMask } from "@/hooks/usePhoneMask";
 import { supabase } from "@/integrations/supabase/client";
+import { AtivarMfa } from "@/components/auth/AtivarMfa";
 
 export default function PersonalSettings() {
   const { user, profile, refreshProfile } = useAuth();
@@ -258,6 +259,8 @@ export default function PersonalSettings() {
             </Button>
           </CardContent>
         </Card>
+
+        <AtivarMfa />
 
         {/* Security */}
         <Card>
