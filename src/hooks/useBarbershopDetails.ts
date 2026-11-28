@@ -21,7 +21,7 @@ export interface BarbershopStats {
 async function carregarBarbearia(slug: string) {
   const { data: barbearia, error } = await supabase
     .from("barbearias")
-    .select("*, servicos!inner (*), funcionarios (id, nome)")
+    .select("*, servicos!inner (*), funcionarios (id, nome, foto_url)")
     .eq("slug", slug)
     .is("desativada_em", null)
     .not("servicos.responsavel_id", "is", null)

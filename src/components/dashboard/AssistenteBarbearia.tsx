@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { EVENTO_ABRIR_ASSISTENTE } from "@/lib/eventos";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, MessageCircle, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -96,6 +97,12 @@ export function AssistenteBarbearia({ barbeariaId, admin }: { barbeariaId: strin
   const fimDaConversa = useRef<HTMLDivElement>(null);
   const enviando = useRef(false);
   const [aberto, setAberto] = useState(false);
+  // No celular o assistente é aberto pelo botão do dock (MobileBottomNav)
+  useEffect(() => {
+    const abrir = () => setAberto(true);
+    window.addEventListener(EVENTO_ABRIR_ASSISTENTE, abrir);
+    return () => window.removeEventListener(EVENTO_ABRIR_ASSISTENTE, abrir);
+  }, []);
   const [comando, setComando] = useState("");
   const [conversa, setConversa] = useState<Mensagem[]>([]);
   const [consultando, setConsultando] = useState(false);
@@ -184,7 +191,7 @@ export function AssistenteBarbearia({ barbeariaId, admin }: { barbeariaId: strin
   return (
     <Sheet open={aberto} onOpenChange={setAberto}>
       <SheetTrigger asChild>
-        <Button size="icon" className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-4 z-40 h-12 w-12 rounded-full shadow-lg shadow-primary/25 md:bottom-6 md:right-6 md:h-14 md:w-14"
+        <Button size="icon" className="fixed bottom-6 right-6 z-40 hidden h-14 w-14 rounded-full shadow-lg shadow-primary/25 md:inline-flex"
           aria-label="Abrir assistente da barbearia" title="Assistente da barbearia">
           <MessageCircle className="!h-6 !w-6" />
         </Button>

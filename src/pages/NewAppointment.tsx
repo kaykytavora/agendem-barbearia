@@ -48,7 +48,7 @@ export default function NewAppointment() {
   const [comando, setComando] = useState(typeof state?.comando === "string" ? state.comando : "");
   const [interpretando, setInterpretando] = useState(false);
   const [avisoIA, setAvisoIA] = useState("");
-  const [horaPedida, setHoraPedida] = useState("");
+  const [horaPedida, setHoraPedida] = useState(typeof state?.hora === "string" ? state.hora : "");
   const [profissionalPendente, setProfissionalPendente] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -56,8 +56,8 @@ export default function NewAppointment() {
     cliente_telefone: "",
     cliente_email: "",
     servico_id: "",
-    funcionario_id: "",
-    data: "",
+    funcionario_id: typeof state?.funcionarioId === "string" ? state.funcionarioId : "",
+    data: typeof state?.data === "string" ? state.data : "",
     hora: ""
   });
 

@@ -195,3 +195,26 @@
 @media (prefers-reduced-motion: reduce) {
   .pill-brilho::before { animation: none; display: none; }
 }
+
+/* Painel de páginas do dock (celular): ícones entram em cascata */
+.dock-item-entra {
+  animation: dock-item-entra 360ms cubic-bezier(0.34, 1.4, 0.64, 1) backwards;
+  animation-delay: var(--atraso, 0ms);
+}
+@keyframes dock-item-entra {
+  from { opacity: 0; transform: translateY(10px) scale(0.85); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dock-item-entra { animation: none; }
+}
+
+/* iPhone/Safari dá zoom automático ao focar um campo com fonte menor que 16px.
+   No celular, todo campo de digitação fica com pelo menos 16px (sem travar o zoom da página). */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  textarea,
+  select {
+    font-size: max(16px, 1em) !important;
+  }
+}

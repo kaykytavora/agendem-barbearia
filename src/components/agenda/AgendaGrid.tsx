@@ -73,27 +73,24 @@ export function AgendaGrid({ days, viewMode, selectedDayIndex, onSlotClick }: Ag
   return (
     <ScrollArea className="h-[calc(100vh-320px)] min-h-[400px]">
       <div className="overflow-x-auto">
-        <div className="grid gap-0.5 min-w-0 grid-cols-[50px_repeat(7,1fr)]">
+        <div className="grid min-w-0 grid-cols-[52px_repeat(7,1fr)] gap-1">
           {/* Header row */}
-          <div className="sticky top-0 z-10 bg-background" />
+          <div className="sticky top-0 z-10 bg-card" />
           {displayDays.map((day) => (
             <div
               key={day.data.toISOString()}
               className={cn(
-                'sticky top-0 z-10 bg-background p-2 text-center border-b',
-                isToday(day.data) && 'bg-primary/10'
+                'sticky top-0 z-10 mb-1 rounded-xl bg-card p-2 text-center',
+                isToday(day.data) && 'bg-primary text-primary-foreground shadow-brand-sm'
               )}
             >
               <div className={cn(
-                'text-xs font-medium capitalize',
-                isToday(day.data) && 'text-primary'
+                'text-xs font-medium capitalize text-muted-foreground',
+                isToday(day.data) && 'text-primary-foreground/80'
               )}>
                 {format(day.data, 'EEE', { locale: ptBR })}
               </div>
-              <div className={cn(
-                'text-base font-bold',
-                isToday(day.data) && 'text-primary'
-              )}>
+              <div className="text-lg font-bold leading-tight">
                 {format(day.data, 'd')}
               </div>
               {day.fechado && (
@@ -107,7 +104,7 @@ export function AgendaGrid({ days, viewMode, selectedDayIndex, onSlotClick }: Ag
             <Fragment key={`row-${time}`}>
               <div
                 key={`time-${time}`}
-                className="text-[10px] text-muted-foreground text-right pr-2 pt-1 font-medium"
+                className="pr-2 pt-2 text-right text-[11px] font-medium tabular-nums text-muted-foreground"
               >
                 {time}
               </div>
@@ -117,7 +114,7 @@ export function AgendaGrid({ days, viewMode, selectedDayIndex, onSlotClick }: Ag
                   return (
                     <div
                       key={`${day.data.toISOString()}-${time}`}
-                      className="h-7 bg-muted/30 rounded-sm border border-muted"
+                      className="h-8 rounded-lg bg-muted/40"
                     />
                   );
                 }
@@ -125,7 +122,7 @@ export function AgendaGrid({ days, viewMode, selectedDayIndex, onSlotClick }: Ag
                   return (
                     <div
                       key={`${day.data.toISOString()}-${time}`}
-                      className="h-7"
+                      className="h-8"
                     />
                   );
                 }

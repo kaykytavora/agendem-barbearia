@@ -285,18 +285,21 @@ const ClientPanel = () => {
 				{/* Destaque: próximo horário, ou atalho para agendar de novo */}
 				{proximo ? (
 					<section aria-labelledby="proximo-titulo" className="overflow-hidden rounded-3xl bg-primary text-primary-foreground shadow-brand-lg">
-						<div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-6">
-							<div className="flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-2xl bg-primary-foreground/10">
+						<div className="flex items-start gap-4 p-5 sm:items-center sm:gap-5 sm:p-6">
+							<div className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl bg-primary-foreground/10 sm:h-20 sm:w-20">
 								<span className="text-xs font-medium uppercase opacity-80">
 									{format(new Date(proximo.data_hora), "MMM", { locale: ptBR }).replace(".", "")}
 								</span>
-								<span className="font-display text-3xl font-bold leading-none">
+								<span className="font-display text-2xl font-bold leading-none sm:text-3xl">
 									{format(new Date(proximo.data_hora), "dd")}
 								</span>
 							</div>
 							<div className="min-w-0 flex-1 space-y-1">
-								<p id="proximo-titulo" className="text-sm font-medium opacity-80">Seu próximo horário</p>
-								<h2 className="truncate text-xl font-bold">{proximo.barbearias?.nome || "Barbearia"}</h2>
+								<p id="proximo-titulo" className="flex flex-wrap items-center gap-2 text-sm font-medium">
+									<span className="opacity-80">Seu próximo horário</span>
+									<span className="rounded-full bg-primary-foreground/15 px-2 py-0.5 text-[11px] font-semibold sm:hidden">{proximo.status === "confirmado" ? "Confirmado" : "Aguardando"}</span>
+								</p>
+								<h2 className="truncate text-lg font-bold sm:text-xl">{proximo.barbearias?.nome || "Barbearia"}</h2>
 								<p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm opacity-90">
 									<span className="flex items-center gap-1.5">
 										<Clock className="h-4 w-4" aria-hidden="true" />
@@ -314,7 +317,9 @@ const ClientPanel = () => {
 									)}
 								</p>
 							</div>
-							<div className="shrink-0 self-start sm:self-center">{getStatusBadge(proximo.status)}</div>
+							<span className="hidden shrink-0 rounded-full bg-primary-foreground/15 px-3 py-1 text-xs font-semibold sm:inline-block">
+								{proximo.status === "confirmado" ? "Confirmado" : "Aguardando confirmação"}
+							</span>
 						</div>
 						<div className="border-t border-primary-foreground/15 bg-card px-5 py-3 text-foreground sm:px-6">
 							<AcoesAgendamento agendamento={proximo} lado="cliente" />

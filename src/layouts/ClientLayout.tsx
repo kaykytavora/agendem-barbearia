@@ -4,6 +4,8 @@ import { CalendarDays, HelpCircle, Home, LogOut, Search, Settings, type LucideIc
 import { AgendemIcon } from "@/components/AgendemIcon";
 import { PillDeslizante } from "@/components/PillDeslizante";
 import { AIAssistantButton } from "@/components/ai/AIAssistantButton";
+import { DockNavegacao, type GrupoDock } from "@/components/DockNavegacao";
+import { EVENTO_ABRIR_ASSISTENTE_CLIENTE } from "@/lib/eventos";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,6 +37,11 @@ export function ClientLayout({ children, onAjuda }: ClientLayoutProps) {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const nome = profile?.name || user?.user_metadata?.name || "Cliente";
+
+  const gruposDock: GrupoDock[] = [
+    { titulo: "Navegar", itens: ITENS.map(({ to, label, icon }) => ({ title: label, url: to, icon })) },
+    ...(onAjuda ? [{ titulo: "Ajuda", itens: [{ title: "Como funciona", icon: HelpCircle, onClick: onAjuda }] }] : []),
+  ];
 
   const sair = async () => {
     await signOut();
@@ -116,43 +123,24 @@ export function ClientLayout({ children, onAjuda }: ClientLayoutProps) {
             </button>
           )}
           <ThemeToggle />
-          <button type="button" onClick={sair} aria-label="Sair"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-muted">
-            <LogOut className="h-4 w-4" />
-          </button>
         </div>
       </header>
 
-      <main className="pb-24 lg:pb-0 lg:pl-64">{children}</main>
+      <main className="pb-28 lg:pb-0 lg:pl-64">{children}</main>
 
-      {/* Assistente acima da barra inferior no celular */}
-      <AIAssistantButton className="bottom-24 lg:bottom-6" />
+      {/* No celular o assistente abre pelo dock; o botão flutuante só aparece no desktop */}
+      <AIAssistantButton className="bottom-24 lg:bottom-6" classeBotao="hidden lg:inline-flex" />
 
-      {/* Barra inferior (celular) */}
-      <nav
-        aria-label="Navegação do cliente"
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-border/60 bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
-      >
-        {ITENS.map(({ to, curto, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) => cn(
-              "flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors",
-              isActive ? "text-primary" : "text-muted-foreground",
-            )}
-          >
-            {({ isActive }) => (
-              <>
-                <span className={cn("flex h-7 w-12 items-center justify-center rounded-full transition-colors", isActive && "bg-primary/10")}>
-                  <Icon className="h-5 w-5" aria-hidden="true" />
-                </span>
-                {curto}
-              </>
-            )}
-          </NavLink>
-        ))}
-      </nav>
+      {/* Dock (celular) */}
+      <DockNavegacao
+        rotulo="Navegação do cliente"
+        id="cliente"
+        ocultarEm="lg:hidden"
+        principais={ITENS.slice(0, 3).map(({ to, curto, icon }) => ({ title: curto, url: to, icon }))}
+        grupos={gruposDock}
+        onAssistente={() => window.dispatchEvent(new Event(EVENTO_ABRIR_ASSISTENTE_CLIENTE))}
+        onSair={sair}
+      />
     </div>
   );
 }

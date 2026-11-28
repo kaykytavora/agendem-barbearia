@@ -19,7 +19,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, options?: { data?: Record<string, unknown> }) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<{ error: Error | null }>;
-  resetPassword: (email: string) => Promise<{ error: Error | null }>;
+  resetPassword: (email: string, caminhoRetorno?: string) => Promise<{ error: Error | null }>;
   verifyCodeAndUpdatePassword: (email: string, code: string, password: string) => Promise<{ error: Error | null }>;
   refreshProfile: () => Promise<void>;
 }
@@ -301,8 +301,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+  const resetPassword = async (email: string, caminhoRetorno = "/reset-password") => {
+    // Se o modelo de e-mail do Supabase mandar o link (padrão), ele volta para a tela de redefinição;
+    // se mandar o código ({{ .Token }}), a mesma tela aceita o código.
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: new URL(caminhoRetorno, window.location.origin).href,
+    });
     return { error };
   };
 

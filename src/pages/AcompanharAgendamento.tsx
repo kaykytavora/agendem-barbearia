@@ -1,9 +1,9 @@
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Calendar, Copy, Gift } from "lucide-react";
+import { Calendar, Copy, Gift, Loader2, Scissors, User } from "lucide-react";
+import { AgendemIcon } from "@/components/AgendemIcon";
 import { AcoesAgendamento } from "@/components/AcoesAgendamento";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { consultarAgendamentoPorLink } from "@/integrations/supabase/api";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,13 @@ const statusLabel = {
   confirmado: "Confirmado",
   cancelado: "Cancelado",
   finalizado: "Finalizado",
+};
+
+const corStatus = {
+  pendente: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+  confirmado: "bg-primary/10 text-primary",
+  cancelado: "bg-destructive/10 text-destructive",
+  finalizado: "bg-muted text-muted-foreground",
 };
 
 export default function AcompanharAgendamento() {
@@ -53,34 +60,69 @@ export default function AcompanharAgendamento() {
     }
   }
 
+  const dataHora = data ? new Date(data.data_hora) : null;
+
   return (
-    <main className="min-h-screen bg-gradient-bg px-4 py-10 sm:py-16">
-      <Card className="mx-auto max-w-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-primary" /> Acompanhar agendamento
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {isLoading ? <p role="status">Carregando agendamento...</p> : isError ? (
-            <div className="space-y-2">
+    <main className="flex min-h-svh flex-col items-center justify-center bg-gradient-bg px-4 py-8">
+      <Link to="/barbearias" className="mb-5 flex items-center gap-2 text-primary">
+        <AgendemIcon className="h-6 w-6" />
+        <span className="font-display text-lg font-bold text-foreground">agendem<span className="text-primary">.</span></span>
+      </Link>
+
+      <section className="page-enter w-full max-w-md overflow-hidden rounded-3xl border border-border/60 bg-card shadow-brand-lg">
+        <header className="flex items-center gap-2 border-b border-border/60 px-5 py-4">
+          <Calendar className="h-4 w-4 text-primary" aria-hidden="true" />
+          <h1 className="text-base font-semibold">Acompanhar agendamento</h1>
+        </header>
+
+        <div className="space-y-5 p-5">
+          {isLoading ? (
+            <p role="status" className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Carregando agendamento...
+            </p>
+          ) : isError ? (
+            <div className="space-y-3 py-4 text-center">
               <p>Não consegui consultar o agendamento agora.</p>
               <Button variant="outline" onClick={() => void refetch()}>Tentar novamente</Button>
             </div>
-          ) : data ? (
+          ) : data && dataHora ? (
             <>
-              <div>
-                <p className="font-semibold">{data.barbearia}</p>
-                <p>{data.servico}{data.profissional && ` com ${data.profissional}`}</p>
-                <p className="text-muted-foreground">
-                  {new Date(data.data_hora).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+              <div className="flex flex-col items-center text-center">
+                <div className="mb-3 flex h-20 w-20 flex-col items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-brand-md">
+                  <span className="text-xs font-medium uppercase opacity-80">
+                    {dataHora.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "")}
+                  </span>
+                  <span className="font-display text-3xl font-bold leading-none">{dataHora.getDate()}</span>
+                </div>
+                <p className="text-lg font-bold">{data.barbearia}</p>
+                <p className="text-sm text-muted-foreground first-letter:uppercase">
+                  {dataHora.toLocaleDateString("pt-BR", { weekday: "long" })} às {dataHora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                 </p>
+                <span role="status" className={`mt-3 rounded-full px-3 py-1 text-xs font-semibold ${corStatus[data.status]}`}>
+                  {statusLabel[data.status]}
+                </span>
               </div>
-              <p className="font-medium" role="status">{statusLabel[data.status]}</p>
-              <AcoesAgendamento agendamento={data} lado="cliente" token={token} onAtualizar={() => void refetch()} />
+
+              <dl className="space-y-2 rounded-2xl bg-muted/50 p-4 text-sm">
+                <div className="flex justify-between gap-3">
+                  <dt className="flex items-center gap-1.5 text-muted-foreground"><Scissors className="h-3.5 w-3.5" aria-hidden="true" /> Serviço</dt>
+                  <dd className="text-right font-medium">{data.servico}</dd>
+                </div>
+                {data.profissional && (
+                  <div className="flex justify-between gap-3">
+                    <dt className="flex items-center gap-1.5 text-muted-foreground"><User className="h-3.5 w-3.5" aria-hidden="true" /> Profissional</dt>
+                    <dd className="text-right font-medium">{data.profissional}</dd>
+                  </div>
+                )}
+              </dl>
+
+              <div className="flex flex-col items-center text-center [&_.flex-wrap]:justify-center">
+                <AcoesAgendamento agendamento={data} lado="cliente" token={token} onAtualizar={() => void refetch()} />
+              </div>
+
               {data.status === "finalizado" && data.selo_disponivel && (
-                <div className="space-y-2 rounded-xl border p-4">
-                  <p className="flex items-center gap-2 text-sm font-medium"><Gift className="h-4 w-4 text-primary" /> Este atendimento vale um selo.</p>
+                <div className="space-y-2 rounded-2xl border border-primary/25 bg-primary/5 p-4 text-center">
+                  <p className="flex items-center justify-center gap-2 text-sm font-medium"><Gift className="h-4 w-4 text-primary" aria-hidden="true" /> Este atendimento vale um selo.</p>
                   {role === "cliente" ? (
                     <Button size="sm" disabled={guardarSelo.isPending} onClick={() => guardarSelo.mutate()}>Guardar selo</Button>
                   ) : !user && (
@@ -90,13 +132,16 @@ export default function AcompanharAgendamento() {
                   )}
                 </div>
               )}
-              {guardarSelo.isSuccess && <Button asChild size="sm" variant="outline"><Link to="/client-panel">Ver meus selos</Link></Button>}
-              <Button variant="outline" size="sm" onClick={copiarLink}><Copy /> Guardar link de acompanhamento</Button>
+              {guardarSelo.isSuccess && <Button asChild size="sm" variant="outline" className="w-full"><Link to="/client-panel">Ver meus selos</Link></Button>}
+              <Button variant="outline" className="w-full" onClick={copiarLink}><Copy /> Guardar link de acompanhamento</Button>
             </>
-          ) : <p>Este link é inválido ou foi substituído. Peça um novo link à barbearia.</p>}
-          <Button asChild variant="link" className="px-0"><Link to="/barbearias">Ver barbearias</Link></Button>
-        </CardContent>
-      </Card>
+          ) : (
+            <p className="py-6 text-center text-sm text-muted-foreground">Este link é inválido ou foi substituído. Peça um novo link à barbearia.</p>
+          )}
+        </div>
+      </section>
+
+      <Button asChild variant="link" className="mt-3"><Link to="/barbearias">Ver barbearias</Link></Button>
     </main>
   );
 }

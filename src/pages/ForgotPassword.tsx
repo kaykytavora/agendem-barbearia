@@ -40,7 +40,7 @@ export default function ForgotPassword() {
   async function enviarCodigo() {
     setEnviando(true);
     try {
-      const { error } = await resetPassword(email);
+      const { error } = await resetPassword(email, cliente ? "/reset-password?acesso=cliente" : "/reset-password");
       if (error) {
         setErro("Não foi possível enviar o código. Confira o e-mail e tente novamente.");
         return;

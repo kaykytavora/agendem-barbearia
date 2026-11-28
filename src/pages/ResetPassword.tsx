@@ -1,4 +1,4 @@
-﻿import { useState, type FormEvent } from "react";
+﻿import { useEffect, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
@@ -9,6 +9,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const campo = "h-11 rounded-lg bg-background/65";
 
@@ -25,10 +26,25 @@ export default function ResetPassword() {
   const [codigo, setCodigo] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  // Chegou pelo link do e-mail: o Supabase já abriu a sessão de recuperação, basta a nova senha
+  const [porLink, setPorLink] = useState(() => /type=recovery/.test(window.location.hash));
+
+  useEffect(() => {
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    if (hash.get("error_code")) {
+      setErro(hash.get("error_code") === "otp_expired"
+        ? "Este link expirou ou já foi usado. Peça um novo e-mail de recuperação."
+        : "Não foi possível abrir o link de recuperação. Peça um novo e-mail.");
+    }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((evento) => {
+      if (evento === "PASSWORD_RECOVERY") setPorLink(true);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   async function redefinir(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (enviando || codigo.length !== 6) return;
+    if (enviando || (!porLink && codigo.length !== 6)) return;
     const dados = new FormData(event.currentTarget);
     const senha = String(dados.get("password"));
     if (senha !== dados.get("confirmPassword")) {
@@ -39,12 +55,16 @@ export default function ResetPassword() {
     setErro(null);
     setEnviando(true);
     try {
-      const { error } = await verifyCodeAndUpdatePassword(email.trim(), codigo, senha);
+      const { error } = porLink
+        ? await supabase.auth.updateUser({ password: senha })
+        : await verifyCodeAndUpdatePassword(email.trim(), codigo, senha);
       if (error) {
         setErro(error.message || "Não foi possível redefinir a senha. Verifique o código.");
         return;
       }
-      toast({ title: "Senha redefinida com sucesso." });
+      toast({ title: "Senha redefinida com sucesso.", description: "Entre com a nova senha." });
+      // A sessão aberta pela recuperação é encerrada: a pessoa entra de novo com a senha nova
+      await supabase.auth.signOut({ scope: "local" });
       navigate(login, { replace: true });
     } catch {
       setErro("Não foi possível redefinir a senha. Tente novamente.");
@@ -57,6 +77,9 @@ export default function ResetPassword() {
     <LoginLayout acesso={cliente ? "cliente" : "barbearia"} recuperacao="redefinir">
       <form onSubmit={redefinir} aria-busy={enviando} className="space-y-4">
         {erro && <p role="alert" className="rounded-lg border border-destructive/25 bg-destructive/5 p-3 text-sm text-destructive">{erro}</p>}
+        {porLink ? (
+          <p className="rounded-lg border border-primary/25 bg-primary/5 p-3 text-sm">Link confirmado. Agora é só escolher a nova senha.</p>
+        ) : (<>
         <div className="space-y-1.5">
           <Label htmlFor="email">{cliente ? "E-mail" : "E-mail profissional"}</Label>
           <Input id="email" type="email" autoComplete="email" className={campo} value={email}
@@ -75,6 +98,7 @@ export default function ResetPassword() {
             </InputOTPGroup>
           </InputOTP>
         </div>
+        </>)}
 
         <div className="space-y-1.5">
           <Label htmlFor="password">Nova senha</Label>
@@ -89,15 +113,15 @@ export default function ResetPassword() {
             minLength={6} className={campo} disabled={enviando} required />
         </div>
 
-        <Button type="submit" disabled={enviando || codigo.length !== 6} className="h-11 w-full rounded-lg">
+        <Button type="submit" disabled={enviando || (!porLink && codigo.length !== 6)} className="h-11 w-full rounded-lg">
           {enviando && <Loader2 aria-hidden="true" className="animate-spin" />}
           {enviando ? "Redefinindo..." : "Redefinir senha"}
         </Button>
       </form>
       <p className="text-center text-sm text-muted-foreground">
-        Não recebeu o código?{" "}
+        {porLink ? "O link não funcionou?" : "Não recebeu o código?"}{" "}
         <Link to={recuperar} state={{ email }} replace className="font-semibold text-primary underline-offset-4 hover:underline">
-          Solicitar novo código
+          {porLink ? "Pedir novo e-mail" : "Solicitar novo código"}
         </Link>
       </p>
     </LoginLayout>

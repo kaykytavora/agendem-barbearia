@@ -123,3 +123,23 @@
   .login-hero[data-lamina], .login-hero[data-lamina] .login-hero-texto,
   .login-hero[data-lamina] .login-hero-texto > * { animation: none !important; transition: none !important; opacity: 1 !important; transform: none !important; filter: none !important; }
 }
+
+/* Celular/tablet: a foto lateral some, então ela vira o fundo atrás do formulário */
+@media (max-width: 1023px) {
+  .login-main {
+    background:
+      radial-gradient(ellipse at 50% 0%, hsl(152 45% 40% / 0.35), transparent 60%),
+      linear-gradient(180deg, #0f241df0 0%, #142e24d9 45%, #0f241df5 100%),
+      var(--login-imagem) 60% center / cover no-repeat,
+      #122a22;
+  }
+  .login-main[data-lamina="cobrindo"] { animation: hero-sai 650ms cubic-bezier(0.55, 0, 0.75, 0.2) forwards; }
+  .login-main[data-lamina="revelando"] { animation: fundo-entra 900ms cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+}
+@keyframes fundo-entra {
+  from { filter: brightness(0.45); }
+  to { filter: brightness(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-main[data-lamina] { animation: none !important; }
+}

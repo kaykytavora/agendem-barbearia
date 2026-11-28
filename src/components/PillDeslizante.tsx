@@ -8,12 +8,14 @@ interface Posicao {
   right: number;
   /** Direção do último movimento: a borda que vai na frente anda mais rápido */
   descendo: boolean;
+  /** Movimento horizontal (dock): a borda da frente é a da direita ou da esquerda */
+  paraDireita: boolean;
   visivel: boolean;
   /** Conta os movimentos para reiniciar o brilho a cada troca */
   passo: number;
 }
 
-const OCULTA: Posicao = { top: 0, bottom: 0, left: 0, right: 0, descendo: true, visivel: false, passo: 0 };
+const OCULTA: Posicao = { top: 0, bottom: 0, left: 0, right: 0, descendo: true, paraDireita: true, visivel: false, passo: 0 };
 
 /**
  * Última posição de cada menu. Cada página monta o layout de novo, então sem isso o
@@ -27,7 +29,9 @@ const memoria = new Map<string, Posicao>();
  * como uma onda subindo ou descendo. Os itens ativos precisam ter aria-current="page"
  * (o NavLink já coloca) e não devem ter fundo próprio.
  */
-export function PillDeslizante({ id, children, className, pillClassName }: {
+export function PillDeslizante({ id, children, className, pillClassName, seletor = '[aria-current="page"]' }: {
+  /** Como achar o item ativo (padrão: o link da página atual) */
+  seletor?: string;
   /** Identifica o menu para lembrar a posição entre páginas */
   id: string;
   children: ReactNode;
@@ -45,7 +49,7 @@ export function PillDeslizante({ id, children, className, pillClassName }: {
     let quadro = 0;
 
     const medir = () => {
-      const ativo = el.querySelector<HTMLElement>('[aria-current="page"]');
+      const ativo = el.querySelector<HTMLElement>(seletor);
       if (!ativo) {
         if (atual.current.visivel) setPos((p) => ({ ...p, visivel: false }));
         return;
@@ -61,6 +65,7 @@ export function PillDeslizante({ id, children, className, pillClassName }: {
         left: Math.round(itemRect.left - caixaRect.left),
         right: Math.round(caixaRect.right - itemRect.right),
         descendo: anterior.visivel ? top >= anterior.top : true,
+        paraDireita: anterior.visivel ? Math.round(itemRect.left - caixaRect.left) >= anterior.left : true,
         visivel: true,
         passo: anterior.passo + (anterior.visivel ? 1 : 0),
       };
@@ -80,7 +85,7 @@ export function PillDeslizante({ id, children, className, pillClassName }: {
 
     // Itens que aparecem depois (carregamento, troca de página) ou mudam de tamanho
     const mutacoes = new MutationObserver(agendar);
-    mutacoes.observe(el, { subtree: true, childList: true, attributes: true, attributeFilter: ["aria-current"] });
+    mutacoes.observe(el, { subtree: true, childList: true, attributes: true, attributeFilter: ["aria-current", "data-ativo"] });
     const tamanho = new ResizeObserver(agendar);
     tamanho.observe(el);
     return () => {
@@ -88,7 +93,7 @@ export function PillDeslizante({ id, children, className, pillClassName }: {
       mutacoes.disconnect();
       tamanho.disconnect();
     };
-  }, [id]);
+  }, [id, seletor]);
 
   // Borda da frente: chega antes, passa um pouco e volta (quique); a de trás vem devagar
   const frente = "520ms cubic-bezier(0.34, 1.45, 0.64, 1)";
@@ -109,7 +114,7 @@ export function PillDeslizante({ id, children, className, pillClassName }: {
           bottom: pos.bottom,
           left: pos.left,
           right: pos.right,
-          transition: `top ${pos.descendo ? tras : frente}, bottom ${pos.descendo ? frente : tras}, left ${frente}, right ${frente}, opacity 250ms`,
+          transition: `top ${pos.descendo ? tras : frente}, bottom ${pos.descendo ? frente : tras}, left ${pos.paraDireita ? tras : frente}, right ${pos.paraDireita ? frente : tras}, opacity 250ms`,
         }}
       >
         {/* Faixa de luz que atravessa o destaque no sentido do movimento */}

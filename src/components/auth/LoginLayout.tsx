@@ -38,11 +38,11 @@ const conteudo = {
 const recuperacaoConteudo = {
   solicitar: {
     titulo: "Recupere sua senha.",
-    descricao: "Informe o e-mail da sua conta para receber um código de recuperação.",
+    descricao: "Informe o e-mail da sua conta para receber as instruções de recuperação.",
   },
   redefinir: {
     titulo: "Crie uma nova senha.",
-    descricao: "Use o código de seis dígitos enviado para o seu e-mail.",
+    descricao: "Abra o link enviado para o seu e-mail ou digite o código de seis dígitos.",
   },
 };
 
@@ -157,12 +157,16 @@ export function LoginLayout({ acesso, recuperacao, children }: LoginLayoutProps)
         </div>
       </aside>
 
-      <main className={`login-main grid min-w-0 grid-cols-1 px-4 py-3 sm:px-8 lg:px-10 ${!recuperacao ? "grid-rows-1" : "grid-rows-[auto_1fr]"}`}>
+      <main
+        data-lamina={lamina === "parada" ? undefined : lamina}
+        style={{ ["--login-imagem" as string]: `url(${info.imagem})` }}
+        className={`login-main grid min-w-0 grid-cols-1 px-4 py-6 sm:px-8 lg:px-10 lg:py-3 ${!recuperacao ? "grid-rows-1" : "grid-rows-[auto_1fr]"}`}
+      >
         {recuperacao && (
           <div className="mx-auto w-full max-w-[29rem] lg:max-w-none">
             <Link
               to={voltar}
-              className="inline-flex min-h-11 items-center gap-2 rounded-md px-1 text-sm font-medium text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex min-h-11 items-center gap-2 rounded-md px-1 text-sm font-medium text-[#dce7df] transition-colors hover:text-white lg:text-muted-foreground lg:hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <ArrowLeft aria-hidden="true" className="h-4 w-4" />
               Voltar ao login
