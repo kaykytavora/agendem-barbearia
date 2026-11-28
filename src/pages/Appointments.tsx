@@ -36,6 +36,8 @@ import {
 	Mail,
 	CheckCircle,
 	Loader2,
+	MessageCircle,
+	Scissors,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -48,7 +50,7 @@ import { useSearchParams } from "react-router-dom";
 import { gerenciarAgendamento, type AcompanhamentoAgendamento } from "@/integrations/supabase/api";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { whatsAppUrl } from "@/lib/utils";
+import { cn, formatBRL, whatsAppUrl } from "@/lib/utils";
 import { telefoneLocal } from "@/lib/agendamento-assistido";
 
 interface Appointment extends AcompanhamentoAgendamento {
@@ -389,124 +391,97 @@ export default function Appointments() {
 						Object.entries(groupedAppointments).map(
 							([date, appointmentsOnDate]) => (
 								<div key={date}>
-									<h2 className="text-lg sm:text-xl font-semibold mb-3">{date}</h2>
-									<div className="grid grid-cols-1 gap-3 sm:gap-4">
-										{appointmentsOnDate.map((appointment) => (
-											<Card
-												key={appointment.id}
-												ref={
-													appointment.id === highlightedAppointmentId
-														? highlightedAppointmentRef
-														: null
-												}
-												className={`border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-brand-md transition-all duration-300 ${isHighlighting &&
-													appointment.id === highlightedAppointmentId
-													? "animate-pulse-bg"
-													: ""
-													}`}
-											>
-												<CardContent className="p-4 sm:p-6">
-													<div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
-														<div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
-															<div className="text-center flex-shrink-0">
-																<div className="text-lg sm:text-2xl font-bold text-primary">
-																	{formatTime(appointment.data_hora)}
-																</div>
-																<div className="text-xs text-muted-foreground">
-																	{appointment.servicos.duracao_minutos}min
-																</div>
-															</div>
-															<div className="min-w-0 flex-1">
-																<div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
-																			<h3 className="text-base font-semibold [overflow-wrap:anywhere] sm:text-lg">
-																		{appointment.cliente_nome}
-																	</h3>
-																	<Badge
-																		variant="outline"
-																		className={`${getStatusColor(appointment.status)} shrink-0 self-start text-xs sm:self-auto`}
-																	>
-																		{getStatusLabel(appointment.status)}
-																	</Badge>
-																</div>
-																<div className="text-xs sm:text-sm text-muted-foreground space-y-1">
-																	<div className="flex items-center gap-2">
-																		<User className="w-3 h-3 flex-shrink-0" />
-																		<span className="min-w-0 [overflow-wrap:anywhere]">{appointment.servicos.nome}</span>
-																		<span>•</span>
-																		<span className="flex-shrink-0">
-																			R${" "}
-																			{appointment.servicos.valor.toFixed(2)}
-																		</span>
-																	</div>
-																	<div className="flex items-center gap-2">
-																		<Phone className="w-3 h-3 flex-shrink-0" />
-																		<span className="shrink-0">{appointment.cliente_telefone}</span>
-																		{appointment.funcionarios && (
-																			<>
-																				<span>•</span>
-																				<span className="truncate">
-																					{appointment.funcionarios.nome}
-																				</span>
-																			</>
-																		)}
-																	</div>
-																	{appointment.cliente_email && (
-																		<div className="flex items-center gap-2">
-																			<Mail className="w-3 h-3 flex-shrink-0" />
-																			<span className="min-w-0 [overflow-wrap:anywhere]">{appointment.cliente_email}</span>
-																		</div>
-																	)}
-																</div>
-															</div>
+									<h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">{date}</h2>
+										<div className="grid grid-cols-1 gap-3">
+											{appointmentsOnDate.map((appointment) => {
+												const telefoneValido = telefoneLocal(appointment.cliente_telefone ?? "");
+												// Depois do horário, Finalizar/Não compareceu aparecem nas ações do agendamento
+												const podeFinalizar = appointment.status === "confirmado" && !appointment.cancelamento_solicitado_por && Date.parse(appointment.data_hora) > Date.now();
+												const encerrado = appointment.status === "finalizado" || appointment.status === "cancelado";
+												return (
+												<article
+													key={appointment.id}
+													ref={appointment.id === highlightedAppointmentId ? highlightedAppointmentRef : null}
+													className={cn(
+														"overflow-hidden rounded-2xl border border-border/60 bg-card shadow-brand-sm transition-shadow hover:shadow-brand-md",
+														encerrado && "opacity-80",
+														isHighlighting && appointment.id === highlightedAppointmentId && "animate-pulse-bg",
+													)}
+												>
+													{/* Dados do atendimento */}
+													<div className="flex items-start gap-4 p-4 sm:p-5">
+														<div className="flex w-16 shrink-0 flex-col items-center rounded-xl bg-primary/10 py-2 text-primary">
+															<span className="font-display text-lg font-bold leading-none tabular-nums">{formatTime(appointment.data_hora)}</span>
+															<span className="mt-1 text-[11px] font-medium text-primary/80">{appointment.servicos.duracao_minutos} min</span>
 														</div>
-														<div className="flex w-full flex-wrap items-start gap-2 xl:w-auto xl:max-w-[55%] xl:justify-end">
-															{telefoneLocal(appointment.cliente_telefone ?? "") && (
+														<div className="min-w-0 flex-1 space-y-1.5">
+															<div className="flex flex-wrap items-center gap-2">
+																<h3 className="text-base font-semibold [overflow-wrap:anywhere] sm:text-lg">{appointment.cliente_nome}</h3>
+																<Badge variant="outline" className={`${getStatusColor(appointment.status)} text-xs`}>
+																	{getStatusLabel(appointment.status)}
+																</Badge>
+															</div>
+															<p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+																<span className="flex items-center gap-1.5">
+																	<Scissors className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+																	<span className="[overflow-wrap:anywhere]">{appointment.servicos.nome}</span>
+																</span>
+																<span className="font-medium text-foreground">{formatBRL(appointment.servicos.valor)}</span>
+																{appointment.funcionarios && (
+																	<span className="flex items-center gap-1.5">
+																		<User className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+																		{appointment.funcionarios.nome}
+																	</span>
+																)}
+															</p>
+															<p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+																<span className="flex items-center gap-1.5">
+																	<Phone className="h-3 w-3 shrink-0" aria-hidden="true" />
+																	{appointment.cliente_telefone}
+																</span>
+																{appointment.cliente_email && (
+																	<span className="flex min-w-0 items-center gap-1.5">
+																		<Mail className="h-3 w-3 shrink-0" aria-hidden="true" />
+																		<span className="[overflow-wrap:anywhere]">{appointment.cliente_email}</span>
+																	</span>
+																)}
+															</p>
+														</div>
+													</div>
+
+													{/* Ações */}
+													<div className="flex flex-col gap-3 border-t border-border/60 bg-muted/30 px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-5">
+														<div className="min-w-0 flex-1">
+															<AcoesAgendamento agendamento={appointment} lado="equipe" />
+														</div>
+														<div className="flex flex-wrap items-start gap-2 sm:justify-end">
+															{!appointment.user_id && !encerrado && <LinkClienteAgendamento id={appointment.id} />}
+															{telefoneValido && (
 																<Button asChild variant="outline" size="sm">
-																	<a href={whatsAppUrl(appointment.cliente_telefone)}
-																		target="_blank" rel="noopener noreferrer"
-																		aria-label={`Entrar em contato com ${appointment.cliente_nome} pelo WhatsApp`}>
-																		<Phone aria-hidden="true" /> Entrar em contato
+																	<a href={whatsAppUrl(appointment.cliente_telefone)} target="_blank" rel="noopener noreferrer"
+																		aria-label={`Conversar com ${appointment.cliente_nome} pelo WhatsApp`}>
+																		<MessageCircle aria-hidden="true" /> WhatsApp
 																	</a>
 																</Button>
 															)}
-															<AcoesAgendamento agendamento={appointment} lado="equipe" />
-															{!appointment.user_id && (
-																<LinkClienteAgendamento id={appointment.id} />
-															)}
-															{appointment.status === "confirmado" && !appointment.cancelamento_solicitado_por && (
+															{podeFinalizar && (
 																<AlertDialog>
 																	<AlertDialogTrigger asChild>
-																		<Button
-																			variant="outline"
-																			size="sm"
-																			className="text-blue-600 border-blue-500/50 hover:bg-blue-500/10 text-xs sm:text-sm h-8 sm:h-auto"
-																			disabled={updateStatusMutation.isPending}
-																		>
-																			{updateStatusMutation.isPending ? (
-																				<Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 animate-spin" />
-																			) : (
-																				<CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-																			)}
+																		<Button size="sm" disabled={updateStatusMutation.isPending}>
+																			{updateStatusMutation.isPending ? <Loader2 className="animate-spin" /> : <CheckCircle />}
 																			Finalizar
 																		</Button>
 																	</AlertDialogTrigger>
 																	<AlertDialogContent>
 																		<AlertDialogHeader>
-																			<AlertDialogTitle>
-																				Finalizar Atendimento?
-																			</AlertDialogTitle>
+																			<AlertDialogTitle>Finalizar atendimento?</AlertDialogTitle>
 																			<AlertDialogDescription>
-																				Marcar este agendamento como
-																				finalizado irá adicioná-lo ao
-																				histórico e liberar a avaliação
-																				para o cliente.
+																				O agendamento vai para o histórico e o cliente poderá avaliar o atendimento.
 																			</AlertDialogDescription>
 																		</AlertDialogHeader>
 																		<AlertDialogFooter>
 																			<AlertDialogCancel>Voltar</AlertDialogCancel>
-																			<AlertDialogAction
-															onClick={() => updateStatusMutation.mutate(appointment.id)}
-																			>
+																			<AlertDialogAction onClick={() => updateStatusMutation.mutate(appointment.id)}>
 																				Sim, finalizar
 																			</AlertDialogAction>
 																		</AlertDialogFooter>
@@ -515,10 +490,10 @@ export default function Appointments() {
 															)}
 														</div>
 													</div>
-												</CardContent>
-											</Card>
-										))}
-									</div>
+												</article>
+												);
+											})}
+										</div>
 								</div>
 							)
 						)

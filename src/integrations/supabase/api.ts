@@ -7,7 +7,7 @@ export type AcompanhamentoAgendamento = Pick<Agendamento,
   "cancelamento_solicitado_por" | "cancelamento_confirmado_em"
 >;
 export type AcaoAgendamento = "confirmar" | "pedir_cancelamento" | "aprovar_cancelamento" |
-  "recusar_cancelamento" | "retirar_cancelamento" | "finalizar";
+  "recusar_cancelamento" | "retirar_cancelamento" | "finalizar" | "nao_compareceu";
 
 /**
  * Gera um token seguro de 64 bytes para autoatendimento

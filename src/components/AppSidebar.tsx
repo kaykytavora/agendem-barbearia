@@ -54,8 +54,8 @@ export function AppSidebar() {
 
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive
-      ? "bg-primary/10 text-primary font-medium border-l-2 border-primary"
-      : "hover:bg-muted/50 text-gray-900 dark:text-white hover:text-gray-900 dark:hover:text-white";
+      ? "bg-primary text-primary-foreground font-medium shadow-brand-sm hover:bg-primary hover:text-primary-foreground"
+      : "text-muted-foreground hover:bg-muted hover:text-foreground";
 
   const handleLogout = async () => {
     try {
@@ -103,13 +103,13 @@ export function AppSidebar() {
     <Sidebar
       collapsible="icon"
     >
-      <SidebarHeader className={collapsed ? "border-b border-border/50 p-2" : "border-b border-border/50 p-4"}>
+      <SidebarHeader className={collapsed ? "p-2 py-4" : "px-5 py-5"}>
         {!collapsed ? (
           <div className="flex items-center gap-3">
             <AgendemIcon className="w-8 h-8 text-primary" />
             <div>
-              <h2 className="font-semibold text-sm text-gray-900 dark:text-white">agendem</h2>
-              <p className="text-xs text-muted-foreground">Sistema de Gestão</p>
+              <h2 className="font-display text-lg font-bold leading-tight tracking-tight">Agendem</h2>
+              <p className="text-xs text-muted-foreground">Painel da barbearia</p>
             </div>
           </div>
         ) : (
@@ -120,7 +120,7 @@ export function AppSidebar() {
       <SidebarContent role="navigation" aria-label="Navegação do painel" className="flex-1">
         <SidebarGroup>
           <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>
-            {authLoading ? <Skeleton className="h-4 w-24" /> : (isAdmin ? "Administração" : "Funcionário")}
+            {authLoading ? <Skeleton className="h-4 w-24" /> : "Menu"}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <AnimatePresence mode="wait">
@@ -131,7 +131,7 @@ export function AppSidebar() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
               >
-                <SidebarMenu>
+                <SidebarMenu className="gap-1">
                   {authLoading ? (
                     <>
                       {[...Array(5)].map((_, i) => (
@@ -150,7 +150,7 @@ export function AppSidebar() {
                           <NavLink
                             to={item.url}
                             end
-                            className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md transition-all ${getNavCls({ isActive })}`}
+                            className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${getNavCls({ isActive })}`}
                             onClick={handleItemClick} // Close sidebar on mobile
                             aria-label={item.title}
                             title={item.title}
@@ -169,7 +169,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>Ações Rápidas</SidebarGroupLabel>
+          <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>Atalhos</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {quick.map((item) => (
@@ -178,7 +178,7 @@ export function AppSidebar() {
                     <NavLink
                       to={item.url}
                       end
-                      className={getNavCls}
+                      className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${getNavCls({ isActive })}`}
                       onClick={handleItemClick}
                       aria-label={item.title}
                       title={item.title}

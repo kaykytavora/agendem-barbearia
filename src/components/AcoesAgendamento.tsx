@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { CheckCircle2, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -29,6 +30,16 @@ const dialogos = {
     texto: "O pedido será retirado e o agendamento continuará ativo.",
     botao: "Retirar pedido",
   },
+  finalizar: {
+    titulo: "Finalizar atendimento?",
+    texto: "O atendimento vai para o histórico, conta no faturamento e o cliente poderá avaliar.",
+    botao: "Sim, finalizar",
+  },
+  nao_compareceu: {
+    titulo: "Cliente não compareceu?",
+    texto: "O agendamento será cancelado e não entra no faturamento.",
+    botao: "Registrar falta",
+  },
 };
 
 const retorno: Record<AcaoAgendamento, string> = {
@@ -38,6 +49,7 @@ const retorno: Record<AcaoAgendamento, string> = {
   recusar_cancelamento: "Pedido recusado. Agendamento mantido.",
   retirar_cancelamento: "Pedido retirado. Agendamento mantido.",
   finalizar: "Atendimento finalizado.",
+  nao_compareceu: "Falta registrada.",
 };
 
 export function AcoesAgendamento({ agendamento, lado, token, onAtualizar, somenteCancelamento = false }: {
@@ -78,6 +90,10 @@ export function AcoesAgendamento({ agendamento, lado, token, onAtualizar, soment
   if (agendamento.status === "finalizado") return null;
 
   const solicitante = agendamento.cancelamento_solicitado_por;
+  // Horário já passou e ninguém resolveu: a equipe registra o que houve
+  const aguardandoDesfecho = lado === "equipe" && !somenteCancelamento && !solicitante
+    && (agendamento.status === "pendente" || agendamento.status === "confirmado")
+    && Date.parse(agendamento.data_hora) <= Date.now();
   const solicitou = solicitante === lado;
   const confirmou = lado === "cliente" ? agendamento.cliente_confirmou_em : agendamento.equipe_confirmou_em;
   const podeConfirmar = !somenteCancelamento && agendamento.status === "pendente" && !confirmou && Date.parse(agendamento.data_hora) > Date.now();
@@ -89,6 +105,40 @@ export function AcoesAgendamento({ agendamento, lado, token, onAtualizar, soment
       ? `Aguardando a confirmação ${lado === "cliente" ? "da barbearia" : "do cliente"}.`
       : null;
   const confirmacao = dialogo && dialogos[dialogo];
+
+  const dialogoConfirmacao = dialogo && confirmacao && (
+    <AlertDialog open onOpenChange={(open) => { if (!open && !isPending) setDialogo(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{confirmacao.titulo}</AlertDialogTitle>
+          <AlertDialogDescription>{confirmacao.texto}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isPending}>Voltar</AlertDialogCancel>
+          <AlertDialogAction disabled={isPending} onClick={(event) => { event.preventDefault(); mutate(dialogo); }}>
+            {isPending ? "Atualizando..." : confirmacao.botao}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
+  if (aguardandoDesfecho) {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-amber-700 dark:text-amber-400">O horário já passou. O que aconteceu?</p>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={() => setDialogo("finalizar")} disabled={isPending}>
+            <CheckCircle2 aria-hidden="true" /> Finalizar atendimento
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setDialogo("nao_compareceu")} disabled={isPending}>
+            <UserX aria-hidden="true" /> Não compareceu
+          </Button>
+        </div>
+        {dialogoConfirmacao}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2">
@@ -110,22 +160,7 @@ export function AcoesAgendamento({ agendamento, lado, token, onAtualizar, soment
           </>
         )}
       </div>
-      {dialogo && confirmacao && (
-        <AlertDialog open onOpenChange={(open) => { if (!open && !isPending) setDialogo(null); }}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{confirmacao.titulo}</AlertDialogTitle>
-              <AlertDialogDescription>{confirmacao.texto}</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isPending}>Voltar</AlertDialogCancel>
-              <AlertDialogAction disabled={isPending} onClick={(event) => { event.preventDefault(); mutate(dialogo); }}>
-                {isPending ? "Atualizando..." : confirmacao.botao}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
+      {dialogoConfirmacao}
     </div>
   );
 }

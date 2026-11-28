@@ -370,37 +370,19 @@ const ClientSettings = () => {
 						</CardContent>
 					</Card>
 
-					{/* Seção de Exclusão de Conta */}
-					<Card className="border-destructive/50 bg-card/50 backdrop-blur-sm">
-						<CardHeader>
-							<CardTitle className="text-destructive">Zona de Perigo</CardTitle>
-							 <CardDescription>
-								Ações permanentes e destrutivas.
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<div className="flex items-center justify-between">
-								<div>
-									<p className="font-medium">Excluir sua conta</p>
-									<p className="text-sm text-muted-foreground">
-										Isso removerá permanentemente todos os seus dados.
-									</p>
-								</div>
-								<AlertDialog onOpenChange={(open) => !open && setDeleteConfirmation("")}>
+					{/* Exclusão de conta: discreta, como a desativação da barbearia */}
+					<div className="flex justify-end border-t border-border pt-3">
+						<AlertDialog onOpenChange={(open) => !open && setDeleteConfirmation("")}>
 									<AlertDialogTrigger asChild>
-										<Button variant="destructive">
-											<Trash2 className="w-4 h-4 mr-2" />
-											Excluir Conta
-										</Button>
+										<Button type="button" variant="ghost" size="sm" className="text-sm font-medium text-muted-foreground hover:text-destructive">
+								Excluir conta
+							</Button>
 									</AlertDialogTrigger>
-									<AlertDialogContent>
+									<AlertDialogContent className="max-w-sm">
 										<AlertDialogHeader>
-											<AlertDialogTitle>⚠️ Confirmar Exclusão de Conta</AlertDialogTitle>
+											<AlertDialogTitle>Excluir conta?</AlertDialogTitle>
 											<AlertDialogDescription>
-												Esta ação não pode ser desfeita. Isso excluirá permanentemente sua conta e removerá todos os seus dados de nossos servidores, incluindo:
-												<br />• Seu perfil e informações pessoais
-												<br />• Histórico de agendamentos
-												<br />• Todas as suas configurações
+												Sua conta, seu histórico de agendamentos e seus selos serão apagados de vez. Essa ação não pode ser desfeita.
 											</AlertDialogDescription>
 										</AlertDialogHeader>
 										<div className="py-4">
@@ -434,16 +416,14 @@ const ClientSettings = () => {
 												) : (
 													<>
 														<Trash2 className="w-4 h-4 mr-2" />
-														Excluir Conta Permanentemente
+														Excluir conta
 													</>
 												)}
 											</AlertDialogAction>
 										</AlertDialogFooter>
 									</AlertDialogContent>
 								</AlertDialog>
-							</div>
-						</CardContent>
-					</Card>
+					</div>
 				</div>
 			</div>
 		</ClientLayout>

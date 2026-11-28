@@ -578,6 +578,7 @@ export type Database = {
           created_at: string
           email: string | null
           especialidade: string | null
+          foto_url: string | null
           id: string
           is_owner: boolean | null
           nivel: Database["public"]["Enums"]["nivel_permissao"]
@@ -590,6 +591,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           especialidade?: string | null
+          foto_url?: string | null
           id?: string
           is_owner?: boolean | null
           nivel?: Database["public"]["Enums"]["nivel_permissao"]
@@ -602,6 +604,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           especialidade?: string | null
+          foto_url?: string | null
           id?: string
           is_owner?: boolean | null
           nivel?: Database["public"]["Enums"]["nivel_permissao"]
@@ -632,6 +635,33 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
         ]
+      }
+      funcionarios_remuneracao: {
+        Row: {
+          barbearia_id: string
+          comissao_percentual: number
+          funcionario_id: string
+          salario_fixo: number
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          barbearia_id: string
+          comissao_percentual?: number
+          funcionario_id: string
+          salario_fixo?: number
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          barbearia_id?: string
+          comissao_percentual?: number
+          funcionario_id?: string
+          salario_fixo?: number
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       horarios_funcionamento: {
         Row: {
