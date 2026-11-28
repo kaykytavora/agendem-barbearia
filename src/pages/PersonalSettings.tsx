@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import imageCompression from "browser-image-compression";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,8 @@ import {
   EyeOff, 
   Camera,
   Save,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -128,6 +130,45 @@ export default function PersonalSettings() {
     }
   };
 
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(user?.user_metadata?.avatar_url);
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
+  const inputFotoRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => setAvatarUrl(user?.user_metadata?.avatar_url), [user]);
+
+  const handleTrocarFoto = async (arquivo: File | undefined) => {
+    if (!arquivo || !user) return;
+    if (!arquivo.type.startsWith("image/")) {
+      toast({ title: "Escolha uma imagem.", variant: "destructive" });
+      return;
+    }
+    setEnviandoFoto(true);
+    try {
+      const comprimida = await imageCompression(arquivo, { maxSizeMB: 0.5, maxWidthOrHeight: 400, useWebWorker: true, fileType: "image/webp" });
+      const caminho = `${user.id}/avatar-${Date.now()}.webp`;
+      const { error: erroUpload } = await supabase.storage.from("avatars").upload(caminho, comprimida, { contentType: "image/webp" });
+      if (erroUpload) throw erroUpload;
+      const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(caminho);
+
+      const { error } = await supabase.auth.updateUser({ data: { avatar_url: publicUrl } });
+      if (error) throw error;
+      // Se a pessoa também atende na barbearia, a foto aparece para os clientes no agendamento
+      await supabase.from("funcionarios").update({ foto_url: publicUrl }).eq("user_id", user.id);
+
+      // Remove a foto anterior para não acumular arquivos
+      if (avatarUrl?.includes("/avatars/")) {
+        await supabase.storage.from("avatars").remove([avatarUrl.substring(avatarUrl.indexOf("/avatars/") + "/avatars/".length)]);
+      }
+      setAvatarUrl(publicUrl);
+      toast({ title: "Foto atualizada." });
+    } catch (erro) {
+      toast({ title: "Não foi possível enviar a foto", description: erro instanceof Error ? erro.message : undefined, variant: "destructive" });
+    } finally {
+      setEnviandoFoto(false);
+      if (inputFotoRef.current) inputFotoRef.current.value = "";
+    }
+  };
+
   const handleSaveNotifications = () => {
     toast({
       title: "Notificações atualizadas",
@@ -188,17 +229,27 @@ export default function PersonalSettings() {
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
               <div className="relative">
                 <Avatar className="w-16 h-16 sm:w-20 sm:h-20">
-                  <AvatarImage src={user?.user_metadata?.avatar_url} />
+                  <AvatarImage src={avatarUrl} className="object-cover" />
                   <AvatarFallback className="bg-gradient-primary text-primary-foreground text-base sm:text-lg">
                     {userInitials}
                   </AvatarFallback>
                 </Avatar>
+                <input
+                  ref={inputFotoRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(e) => handleTrocarFoto(e.target.files?.[0])}
+                />
                 <Button
                   size="icon"
                   variant="outline"
+                  aria-label="Trocar foto"
+                  disabled={enviandoFoto}
+                  onClick={() => inputFotoRef.current?.click()}
                   className="absolute -bottom-1 -right-1 sm:-bottom-2 sm:-right-2 w-6 h-6 sm:w-8 sm:h-8 rounded-full"
                 >
-                  <Camera className="w-3 h-3 sm:w-4 sm:h-4" />
+                  {enviandoFoto ? <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" /> : <Camera className="w-3 h-3 sm:w-4 sm:h-4" />}
                 </Button>
               </div>
               <div className="text-center sm:text-left">

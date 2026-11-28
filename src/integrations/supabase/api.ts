@@ -37,7 +37,7 @@ const generateSHA256Hash = async (token: string): Promise<string> => {
  */
 export const createAppointment = async (
   appointmentData: Pick<Agendamento, "barbearia_id" | "servico_id" | "funcionario_id" | "data_hora" |
-    "cliente_nome" | "cliente_telefone" | "cliente_email" | "user_id" | "avaliado"> & { customer_id?: string },
+    "cliente_nome" | "cliente_telefone" | "cliente_email" | "user_id" | "avaliado"> & { customer_id?: string; grupo_id?: string },
   options?: { carregarDetalhes?: boolean },
 ) => {
   // Tenta obter a sessão do usuário de forma silenciosa.
@@ -62,6 +62,7 @@ export const createAppointment = async (
     data_hora: appointmentData.data_hora,
     booking_token_hash: bookingTokenHash,
     ...(appointmentData.customer_id && { customer_id: appointmentData.customer_id }),
+    ...(appointmentData.grupo_id && { grupo_id: appointmentData.grupo_id }),
     status: 'pendente' as const,
   };
 

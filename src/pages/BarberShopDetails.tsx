@@ -77,7 +77,8 @@ const BarberShopDetails = () => {
       dir: ordem.indexOf(currentStep) < ordem.indexOf(stepAnim.current.step) ? 'back' : 'forward',
     };
   }
-  const [selectedService, setSelectedService] = useState<string | null>(null);
+  // Serviços na ordem em que a pessoa marcou; são feitos em sequência, um logo após o outro
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [professionalChoice, setProfessionalChoice] = useState<string | null>();
   const selectedBarber = professionalChoice ?? null;
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -107,8 +108,13 @@ const BarberShopDetails = () => {
     diasFormatado: ''
   };
   const [submitting, setSubmitting] = useState(false);
-  const selectedServiceData: Servico | undefined = barbershop?.servicos.find((s: Servico) => s.id === selectedService);
-  const selectedDuration = selectedServiceData?.duracao_minutos ?? 30;
+  const selectedServicesData: Servico[] = selectedServices
+    .map((id) => barbershop?.servicos.find((s: Servico) => s.id === id))
+    .filter((s): s is Servico => !!s);
+  const selectedNames = selectedServicesData.map((s) => s.nome).join(' + ');
+  const selectedTotal = selectedServicesData.reduce((t, s) => t + Number(s.valor), 0);
+  // A disponibilidade considera o bloco inteiro (todos os serviços seguidos)
+  const selectedDuration = selectedServicesData.reduce((t, s) => t + s.duracao_minutos, 0) || 30;
 
   useEffect(() => {
     if (profile) {
@@ -205,7 +211,7 @@ const BarberShopDetails = () => {
   const horarioDisponivel = !erroHorarios && timeSlots.some(({ time, isAvailable }) => time === selectedTime && isAvailable);
 
   const handleNextStep = () => {
-    if (currentStep === 'service' && selectedService) {
+    if (currentStep === 'service' && selectedServices.length > 0) {
       setCurrentStep('professional');
     } else if (currentStep === 'professional' && professionalChoice !== undefined) {
       setCurrentStep('datetime');
@@ -254,7 +260,7 @@ const BarberShopDetails = () => {
   };
 
   const handleBookingSubmit = async () => {
-    if (!barbershop || !selectedService || !selectedDate || !selectedTime) return;
+    if (!barbershop || selectedServicesData.length === 0 || !selectedDate || !selectedTime) return;
 
     setSubmitting(true);
 
@@ -319,7 +325,7 @@ const BarberShopDetails = () => {
       // VERIFICAÇÃƒO DE LIMITE DE AGENDAMENTO (versão mais robusta)
       const { data: activeBookings, error: fetchError } = await supabase
         .from('agendamentos')
-        .select('id, status')
+        .select('id, status, barbearia_id, data_hora')
         .eq('cliente_telefone', cleanedPhone)
         .in('status', ['pendente', 'confirmado']);
 
@@ -327,10 +333,13 @@ const BarberShopDetails = () => {
         throw new Error("Não foi possível verificar seus agendamentos existentes.");
       }
 
-      if (activeBookings && activeBookings.length >= 3) {
+      // O limite é de 3 visitas ativas. Uma combinação (corte + luzes) gera vários registros
+      // no mesmo dia, mas conta como uma visita só.
+      const visitasAtivas = new Set((activeBookings ?? []).map((a) => `${a.barbearia_id}|${dataLocalISO(new Date(a.data_hora))}`)).size;
+      if (visitasAtivas >= 3) {
         toast({
           title: "Limite de agendamentos atingido",
-          description: "Você já possui 2 agendamentos ativos. Finalize ou cancele um agendamento para poder marcar outro.",
+          description: `Você já possui ${visitasAtivas} agendamentos ativos e o limite é 3. Finalize ou cancele um para poder marcar outro.`,
           variant: "destructive",
           duration: 6000
         });
@@ -345,28 +354,43 @@ const BarberShopDetails = () => {
       appointmentDateTime.setMinutes(parseInt(minutes, 10));
       appointmentDateTime.setSeconds(0, 0); // Zera segundos e milissegundos
 
-      // 2. Prepare the data for insertion, cleaning the phone number
-      const bookingData = {
-        barbearia_id: barbershop.id,
-        servico_id: selectedService,
-        funcionario_id: selectedBarber,
-        data_hora: appointmentDateTime.toISOString(),
-        cliente_nome: safeName,
-        cliente_telefone: cleanedPhone, // Salva apenas os dígitos
-        cliente_email: safeEmail || null,
-        avaliado: false,
-        // Sempre enviar user_id explicitamente - null para anônimos, user.id para logados
-        user_id: isClientLoggedIn && user ? user.id : null,
-        // Adicionar customer_id se disponível (usuário não logado com OTP verificado)
-        ...(customerId && { customer_id: customerId })
-      };
+      // 2. Um agendamento por serviço, em sequência: corte às 10:00 (30 min) → luzes às 10:30
+      let inicio = appointmentDateTime.getTime();
+      const criados = [];
+      // Serviços escolhidos juntos formam um único atendimento
+      const grupoId = selectedServicesData.length > 1 ? crypto.randomUUID() : undefined;
+      for (const servico of selectedServicesData) {
+        const bookingData = {
+          barbearia_id: barbershop.id,
+          servico_id: servico.id,
+          funcionario_id: selectedBarber,
+          grupo_id: grupoId,
+          data_hora: new Date(inicio).toISOString(),
+          cliente_nome: safeName,
+          cliente_telefone: cleanedPhone, // Salva apenas os dígitos
+          cliente_email: safeEmail || null,
+          avaliado: false,
+          // Sempre enviar user_id explicitamente - null para anônimos, user.id para logados
+          user_id: isClientLoggedIn && user ? user.id : null,
+          // Adicionar customer_id se disponível (usuário não logado com OTP verificado)
+          ...(customerId && { customer_id: customerId })
+        };
 
-      const data = await createAppointment(bookingData, { carregarDetalhes: false }).catch(async (error: unknown) => {
-        if (error instanceof Error && error.message.startsWith("Esse horário já está reservado")) {
-          await refetchBarbershop();
-        }
-        throw error;
-      });
+        const criado = await createAppointment(bookingData, { carregarDetalhes: false }).catch(async (error: unknown) => {
+          if (error instanceof Error && error.message.startsWith("Esse horário já está reservado")) {
+            await refetchBarbershop();
+          }
+          // Se parte da combinação já foi marcada, avisa quais serviços ficaram reservados
+          if (criados.length > 0 && error instanceof Error) {
+            const feitos = selectedServicesData.slice(0, criados.length).map((s) => s.nome).join(', ');
+            throw new Error(`${error.message} Os serviços ${feitos} foram agendados; ${servico.nome} não.`);
+          }
+          throw error;
+        });
+        criados.push(criado);
+        inicio += servico.duracao_minutos * 60_000;
+      }
+      const data = criados[0];
 
       // Para usuários anônimos, não tentamos buscar dados completos via RLS
       // pois eles não têm permissão de leitura
@@ -387,17 +411,17 @@ const BarberShopDetails = () => {
           console.error("Erro ao buscar dados completos do agendamento:", fetchDataError);
           setLastCreatedAppointment(data);
         } else {
-          setLastCreatedAppointment(fullAppointmentData);
+          // O comprovante mostra a combinação inteira
+          setLastCreatedAppointment({
+            ...fullAppointmentData,
+            servicos: { nome: selectedNames, valor: selectedTotal, duracao_minutos: selectedDuration },
+          });
         }
       } else {
         // Para anônimos, construir dados completos manualmente usando dados que já temos
         const fullData = {
           ...data,
-          servicos: {
-            nome: barbershop.servicos?.find((s: any) => s.id === selectedService)?.nome || '',
-            valor: barbershop.servicos?.find((s: any) => s.id === selectedService)?.valor || 0,
-            duracao_minutos: barbershop.servicos?.find((s: any) => s.id === selectedService)?.duracao_minutos || 30
-          },
+          servicos: { nome: selectedNames, valor: selectedTotal, duracao_minutos: selectedDuration },
           funcionarios: selectedBarber
             ? { nome: barbershop.funcionarios?.find((f: any) => f.id === selectedBarber)?.nome || 'Qualquer profissional' }
             : null,
@@ -450,19 +474,9 @@ const BarberShopDetails = () => {
       cliente_email: lastCreatedAppointment.cliente_email,
       data_hora: lastCreatedAppointment.data_hora,
       status: lastCreatedAppointment.status,
-      servico: lastCreatedAppointment.servicos || (() => {
-        // Buscar o serviço completo pelo ID selecionado
-        const selectedServiceObj = barbershop?.servicos?.find((s: any) => s.id === selectedService);
-        return selectedServiceObj ? {
-          nome: selectedServiceObj.nome,
-          valor: selectedServiceObj.valor,
-          duracao_minutos: selectedServiceObj.duracao_minutos
-        } : {
-          nome: 'Serviço não identificado',
-          valor: 0,
-          duracao_minutos: 0
-        };
-      })(),
+      servico: lastCreatedAppointment.servicos || (selectedServicesData.length
+        ? { nome: selectedNames, valor: selectedTotal, duracao_minutos: selectedDuration }
+        : { nome: 'Serviço não identificado', valor: 0, duracao_minutos: 0 }),
       funcionario: lastCreatedAppointment.funcionarios || {
         nome: 'A definir'
       },
@@ -557,16 +571,16 @@ const BarberShopDetails = () => {
   const isStaff = !!profile?.role && profile.role !== 'cliente';
 
   // Texto do resumo fixo no rodapé do agendamento
-  const summaryTitle = selectedServiceData?.nome ?? 'Escolha um serviço';
+  const summaryTitle = selectedNames || 'Escolha um ou mais serviços';
   const summarySubtitle = [
-    selectedServiceData && formatBRL(selectedServiceData.valor),
+    selectedServicesData.length > 0 && `${formatBRL(selectedTotal)} · ${selectedDuration} min`,
     professionalChoice !== undefined && (selectedBarberName ?? 'Qualquer profissional'),
     selectedDate?.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, ''),
     currentStep === 'datetime' && !horarioDisponivel ? null : selectedTime,
   ].filter(Boolean).join(' · ');
 
   const summaryAction = {
-    service: { label: 'Continuar', disabled: !selectedService },
+    service: { label: 'Continuar', disabled: selectedServices.length === 0 },
     professional: { label: 'Continuar', disabled: professionalChoice === undefined },
     datetime: { label: 'Continuar', disabled: !selectedDate || !horarioDisponivel },
     client: { label: 'Confirmar', disabled: !clientData.name || !clientData.phone },
@@ -582,7 +596,7 @@ const BarberShopDetails = () => {
 
   const resetBooking = () => {
     setCurrentStep('service');
-    setSelectedService(null);
+    setSelectedServices([]);
     setProfessionalChoice(undefined);
     setSelectedDate(null);
     setSelectedTime(null);
@@ -634,7 +648,8 @@ const BarberShopDetails = () => {
             {currentStep === 'service' && (
               <div className="space-y-4">
                 <div className="rounded-3xl border border-border/60 bg-card p-4 shadow-brand-md sm:p-6">
-                  <h2 className="mb-4 text-xl font-bold">Escolha o serviço</h2>
+                  <h2 className="text-xl font-bold">Escolha os serviços</h2>
+                  <p className="mb-4 text-sm text-muted-foreground">Pode marcar mais de um — eles são feitos em sequência.</p>
                   {barbershop.servicos.length === 0 ? (
                     <div className="flex flex-col items-center rounded-2xl border border-dashed border-input px-4 py-10 text-center">
                       <CalendarIcon className="mb-3 h-10 w-10 text-muted-foreground" aria-hidden="true" />
@@ -645,12 +660,10 @@ const BarberShopDetails = () => {
                       </p>
                     </div>
                   ) : (
-                    <ServiceList services={barbershop.servicos} selectedId={selectedService} onSelect={(id) => {
-                      if (id !== selectedService) {
-                        setSelectedDate(null);
-                        setSelectedTime(null);
-                      }
-                      setSelectedService(id);
+                    <ServiceList services={barbershop.servicos} selectedIds={selectedServices} onToggle={(id) => {
+                      // A duração total muda, então o horário escolhido pode deixar de caber
+                      setSelectedTime(null);
+                      setSelectedServices((atual) => atual.includes(id) ? atual.filter((s) => s !== id) : [...atual, id]);
                     }} />
                   )}
                 </div>
@@ -706,7 +719,16 @@ const BarberShopDetails = () => {
                         <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" /> Consultando horários...
                       </p>
                     ) : (
-                      <TimeSlotGrid slots={timeSlots} selected={selectedTime} onSelect={setSelectedTime} />
+                      <>
+                        <TimeSlotGrid slots={timeSlots} selected={selectedTime} onSelect={setSelectedTime} />
+                        {timeSlots.some((s) => !s.isAvailable) && (
+                          <p className="mt-3 text-xs text-muted-foreground">
+                            Só aparecem livres os horários em que cabem os {selectedDuration} min seguidos
+                            {selectedServicesData.length > 1 ? ' de todos os serviços escolhidos' : ''}.
+                            Horários indisponíveis já têm alguém marcado nesse intervalo.
+                          </p>
+                        )}
+                      </>
                     )}
                   </section>
                 </CardContent>
@@ -809,11 +831,11 @@ const BarberShopDetails = () => {
               <BookingConfirmationCard
                 shopName={barbershop.nome}
                 detalhes={[
-                  { rotulo: 'Serviço', valor: selectedServiceData?.nome },
+                  { rotulo: selectedServicesData.length > 1 ? 'Serviços' : 'Serviço', valor: selectedNames },
                   { rotulo: 'Data', valor: selectedDate && formatDate(selectedDate) },
                   { rotulo: 'Horário', valor: selectedTime },
                   { rotulo: 'Profissional', valor: selectedBarberName },
-                  { rotulo: 'Valor', valor: selectedServiceData && formatBRL(selectedServiceData.valor) },
+                  { rotulo: 'Valor', valor: selectedServicesData.length > 0 && formatBRL(selectedTotal) },
                 ]}
                 canDownload={!!lastCreatedAppointment}
                 onDownload={handleDownloadReceipt}

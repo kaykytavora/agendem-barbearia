@@ -11,15 +11,16 @@ export interface ServiceOption {
 
 interface ServiceListProps {
   services: ServiceOption[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
+  /** Serviços marcados; dá para combinar vários (ex.: corte + luzes) */
+  selectedIds: string[];
+  onToggle: (id: string) => void;
 }
 
-export function ServiceList({ services, selectedId, onSelect }: ServiceListProps) {
+export function ServiceList({ services, selectedIds, onToggle: onSelect }: ServiceListProps) {
   return (
     <div className="grid gap-2.5">
       {services.map((service) => {
-        const selected = service.id === selectedId;
+        const selected = selectedIds.includes(service.id);
         return (
           <button
             key={service.id}
@@ -39,7 +40,7 @@ export function ServiceList({ services, selectedId, onSelect }: ServiceListProps
             <span
               aria-hidden="true"
               className={cn(
-                "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-200",
+                "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors duration-200",
                 selected ? "border-primary bg-primary text-primary-foreground" : "border-input group-hover:border-primary/50",
               )}
             >

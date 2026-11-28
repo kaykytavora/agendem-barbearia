@@ -40,6 +40,7 @@ export type Database = {
           data_hora: string
           equipe_confirmou_em: string | null
           funcionario_id: string | null
+          grupo_id: string | null
           id: string
           origem: string | null
           servico_id: string
@@ -56,6 +57,7 @@ export type Database = {
           created_at?: string
           data_hora: string
           funcionario_id?: string | null
+          grupo_id?: string | null
           id?: string
           origem?: string | null
           servico_id: string
@@ -72,6 +74,7 @@ export type Database = {
           created_at?: string
           data_hora?: string
           funcionario_id?: string | null
+          grupo_id?: string | null
           id?: string
           origem?: string | null
           servico_id?: string
@@ -242,6 +245,24 @@ export type Database = {
           table_name?: string
           user_agent?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      barbearias_favoritas: {
+        Row: {
+          barbearia_id: string
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          barbearia_id: string
+          created_at?: string
+          user_id?: string
+        }
+        Update: {
+          barbearia_id?: string
+          created_at?: string
+          user_id?: string
         }
         Relationships: []
       }

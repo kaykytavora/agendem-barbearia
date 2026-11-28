@@ -15,7 +15,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -207,6 +207,7 @@ export function AppSidebar() {
                 <Button variant="ghost" aria-label="Menu da conta" className="h-auto w-full min-w-0 justify-between p-2 hover:bg-muted/50">
                   <div className="flex min-w-0 items-center gap-3">
                     <Avatar className="w-8 h-8">
+                      <AvatarImage src={user?.user_metadata?.avatar_url} className="object-cover" />
                       <AvatarFallback className="bg-gradient-primary text-primary-foreground text-xs">
                         {authLoading ? '...' : userInitials}
                       </AvatarFallback>
@@ -246,6 +247,7 @@ export function AppSidebar() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="w-8 h-8" aria-label="Menu da conta">
                   <Avatar className="w-8 h-8">
+                    <AvatarImage src={user?.user_metadata?.avatar_url} className="object-cover" />
                     <AvatarFallback className="bg-gradient-primary text-primary-foreground text-xs">
                       {authLoading ? '...' : userInitials}
                     </AvatarFallback>

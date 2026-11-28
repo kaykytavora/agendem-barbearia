@@ -52,8 +52,10 @@ const retorno: Record<AcaoAgendamento, string> = {
   nao_compareceu: "Falta registrada.",
 };
 
-export function AcoesAgendamento({ agendamento, lado, token, onAtualizar, somenteCancelamento = false }: {
+export function AcoesAgendamento({ agendamento, lado, token, onAtualizar, somenteCancelamento = false, ids }: {
   agendamento: AcompanhamentoAgendamento;
+  /** Aplica a ação a todos estes agendamentos (serviços de um mesmo atendimento) */
+  ids?: string[];
   lado: "cliente" | "equipe";
   token?: string;
   onAtualizar?: () => void;
@@ -63,7 +65,9 @@ export function AcoesAgendamento({ agendamento, lado, token, onAtualizar, soment
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { mutate, isPending } = useMutation({
-    mutationFn: (acao: AcaoAgendamento) => gerenciarAgendamento(agendamento.id, acao, token),
+    mutationFn: async (acao: AcaoAgendamento) => {
+      for (const id of ids?.length ? ids : [agendamento.id]) await gerenciarAgendamento(id, acao, token);
+    },
     onSuccess: (_, acao) => {
       setDialogo(null);
       void queryClient.invalidateQueries({ queryKey: ["appointments"] });

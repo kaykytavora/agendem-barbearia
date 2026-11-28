@@ -24,11 +24,39 @@ interface AgendamentoDoDia {
   cliente_telefone: string;
   servicos: { nome: string; valor: number; duracao_minutos: number } | null;
   funcionarios: { nome: string } | null;
+  grupo_id: string | null;
 }
 
 interface Atendimento extends AgendamentoDoDia {
   inicio: Date;
   fim: Date;
+  /** Agendamentos ainda abertos deste atendimento (vários quando é uma combinação de serviços) */
+  ids: string[];
+}
+
+/** Junta os serviços escolhidos juntos (mesmo grupo_id) num atendimento só */
+function agruparDoDia(lista: AgendamentoDoDia[]): Atendimento[] {
+  const grupos = new Map<string, AgendamentoDoDia[]>();
+  for (const a of lista) grupos.set(a.grupo_id ?? a.id, [...(grupos.get(a.grupo_id ?? a.id) ?? []), a]);
+  return [...grupos.values()].map((itens) => {
+    itens.sort((x, y) => x.data_hora.localeCompare(y.data_hora));
+    const inicio = new Date(itens[0].data_hora);
+    const fim = new Date(Math.max(...itens.map((i) => Date.parse(i.data_hora) + (i.servicos?.duracao_minutos ?? 30) * 60_000)));
+    const abertos = itens.filter((i) => i.status !== "finalizado");
+    const base = abertos[0] ?? itens[0];
+    return {
+      ...base,
+      data_hora: itens[0].data_hora,
+      inicio,
+      fim,
+      ids: abertos.map((i) => i.id),
+      servicos: itens.length === 1 ? base.servicos : {
+        nome: itens.map((i) => i.servicos?.nome ?? "Serviço").join(" + "),
+        valor: itens.reduce((t, i) => t + (i.servicos?.valor ?? 0), 0),
+        duracao_minutos: Math.round((fim.getTime() - inicio.getTime()) / 60_000),
+      },
+    };
+  }).sort((a, b) => a.inicio.getTime() - b.inicio.getTime());
 }
 
 const inicioDoDia = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -52,7 +80,7 @@ async function carregarInicio(userId: string, somenteDoFuncionario: boolean) {
 
   let consulta = supabase
     .from("agendamentos")
-    .select("id, data_hora, status, cancelamento_solicitado_por, cliente_nome, cliente_telefone, servicos(nome, valor, duracao_minutos), funcionarios(nome)")
+    .select("id, data_hora, status, cancelamento_solicitado_por, cliente_nome, cliente_telefone, grupo_id, servicos(nome, valor, duracao_minutos), funcionarios(nome)")
     .eq("barbearia_id", barbeariaId)
     .gte("data_hora", hoje.toISOString())
     .lt("data_hora", amanha.toISOString())
@@ -209,7 +237,9 @@ function InicioPainel() {
   });
 
   const finalizar = useMutation({
-    mutationFn: (id: string) => gerenciarAgendamento(id, "finalizar"),
+    mutationFn: async (ids: string[]) => {
+      for (const id of ids) await gerenciarAgendamento(id, "finalizar");
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inicio"] });
       void queryClient.invalidateQueries({ queryKey: ["appointments"] });
@@ -222,12 +252,7 @@ function InicioPainel() {
   });
 
   const dia = useMemo(() => {
-    const atendimentos: Atendimento[] = (data?.agendamentos ?? [])
-      .filter((a) => a.status !== "cancelado")
-      .map((a) => {
-        const inicio = new Date(a.data_hora);
-        return { ...a, inicio, fim: new Date(inicio.getTime() + (a.servicos?.duracao_minutos ?? 30) * 60_000) };
-      });
+    const atendimentos = agruparDoDia((data?.agendamentos ?? []).filter((a) => a.status !== "cancelado"));
 
     const finalizados = atendimentos.filter((a) => a.status === "finalizado");
     const proximo = atendimentos.find((a) => a.status !== "finalizado" && a.fim > agora) ?? null;
@@ -348,7 +373,7 @@ function InicioPainel() {
                   <div className="mt-1 flex flex-wrap gap-2">
                     {dia.proximo.status === "confirmado" && !dia.proximo.cancelamento_solicitado_por ? <Button
                       className="bg-primary-foreground text-foreground hover:bg-primary-foreground/90"
-                      onClick={() => finalizar.mutate(dia.proximo!.id)}
+                      onClick={() => finalizar.mutate(dia.proximo!.ids)}
                       disabled={finalizar.isPending}
                     >
                       {finalizar.isPending ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}

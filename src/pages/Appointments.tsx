@@ -66,6 +66,37 @@ interface Appointment extends AcompanhamentoAgendamento {
 	funcionarios: {
 		nome: string;
 	} | null;
+	grupo_id?: string | null;
+}
+
+/** Um atendimento: um serviço só, ou vários escolhidos juntos (corte + luzes) feitos em sequência */
+type Atendimento = Appointment & { itens: Appointment[] };
+
+const ativo = (a: Appointment) => a.status === "pendente" || a.status === "confirmado";
+
+function agruparAtendimentos(lista: Appointment[]): Atendimento[] {
+	const porChave = new Map<string, Appointment[]>();
+	for (const a of lista) {
+		const chave = a.grupo_id ?? a.id;
+		porChave.set(chave, [...(porChave.get(chave) ?? []), a]);
+	}
+	return [...porChave.values()].map((itens) => {
+		itens.sort((x, y) => x.data_hora.localeCompare(y.data_hora));
+		if (itens.length === 1) return { ...itens[0], itens };
+		const vigentes = itens.filter((i) => i.status !== "cancelado");
+		const contam = vigentes.length ? vigentes : itens;
+		const base = itens.find(ativo) ?? contam[0];
+		return {
+			...base,
+			data_hora: contam[0].data_hora,
+			itens,
+			servicos: {
+				nome: contam.map((i) => i.servicos.nome).join(" + "),
+				valor: contam.reduce((t, i) => t + Number(i.servicos.valor), 0),
+				duracao_minutos: contam.reduce((t, i) => t + i.servicos.duracao_minutos, 0),
+			},
+		};
+	});
 }
 
 // --- Função de API ---
@@ -85,6 +116,7 @@ const fetchAppointments = async (barbeariaId: string, dateRange: { from: Date; t
 			cancelamento_confirmado_em,
 			user_id,
 			funcionario_id,
+			grupo_id,
 			servicos!inner(nome, valor, duracao_minutos),
 			funcionarios(id, nome)
 		`).eq("barbearia_id", barbeariaId);
@@ -188,7 +220,11 @@ export default function Appointments() {
 	});
 
 	const updateStatusMutation = useMutation({
-		mutationFn: (id: string) => gerenciarAgendamento(id, "finalizar"),
+		mutationFn: async (ids: string[]) => {
+			let status = "";
+			for (const id of ids) status = await gerenciarAgendamento(id, "finalizar");
+			return status;
+		},
 		onSuccess: (status) => {
 			queryClient.invalidateQueries({ queryKey: ['appointments'] }); // Invalida todas as queries de appointments
 			void queryClient.invalidateQueries({ queryKey: ["inicio"] });
@@ -242,7 +278,7 @@ export default function Appointments() {
 				return dateA.getTime() - dateB.getTime();
 			});
 
-		return filtered.reduce((acc, appointment) => {
+		const porDia = filtered.reduce((acc, appointment) => {
 			const date = format(new Date(appointment.data_hora), "PPP", { locale: ptBR });
 			if (!acc[date]) {
 				acc[date] = [];
@@ -250,6 +286,8 @@ export default function Appointments() {
 			acc[date].push(appointment);
 			return acc;
 		}, {} as Record<string, Appointment[]>);
+
+		return Object.fromEntries(Object.entries(porDia).map(([dia, lista]) => [dia, agruparAtendimentos(lista)]));
 
 	}, [appointments, statusFilter]);
 
@@ -398,21 +436,25 @@ export default function Appointments() {
 												// Depois do horário, Finalizar/Não compareceu aparecem nas ações do agendamento
 												const podeFinalizar = appointment.status === "confirmado" && !appointment.cancelamento_solicitado_por && Date.parse(appointment.data_hora) > Date.now();
 												const encerrado = appointment.status === "finalizado" || appointment.status === "cancelado";
+												const combinacao = appointment.itens.length > 1;
+												const idsAtivos = appointment.itens.filter(ativo).map((i) => i.id);
+												const destacado = appointment.itens.some((i) => i.id === highlightedAppointmentId);
+												const fim = new Date(Date.parse(appointment.data_hora) + appointment.servicos.duracao_minutos * 60_000);
 												return (
 												<article
 													key={appointment.id}
-													ref={appointment.id === highlightedAppointmentId ? highlightedAppointmentRef : null}
+													ref={destacado ? highlightedAppointmentRef : null}
 													className={cn(
 														"overflow-hidden rounded-2xl border border-border/60 bg-card shadow-brand-sm transition-shadow hover:shadow-brand-md",
 														encerrado && "opacity-80",
-														isHighlighting && appointment.id === highlightedAppointmentId && "animate-pulse-bg",
+														isHighlighting && destacado && "animate-pulse-bg",
 													)}
 												>
 													{/* Dados do atendimento */}
 													<div className="flex items-start gap-4 p-4 sm:p-5">
 														<div className="flex w-16 shrink-0 flex-col items-center rounded-xl bg-primary/10 py-2 text-primary">
 															<span className="font-display text-lg font-bold leading-none tabular-nums">{formatTime(appointment.data_hora)}</span>
-															<span className="mt-1 text-[11px] font-medium text-primary/80">{appointment.servicos.duracao_minutos} min</span>
+															<span className="mt-1 text-[11px] font-medium text-primary/80">{combinacao ? `até ${format(fim, "HH:mm")}` : `${appointment.servicos.duracao_minutos} min`}</span>
 														</div>
 														<div className="min-w-0 flex-1 space-y-1.5">
 															<div className="flex flex-wrap items-center gap-2">
@@ -434,6 +476,25 @@ export default function Appointments() {
 																	</span>
 																)}
 															</p>
+															{combinacao && (
+																<ul className="mt-2 divide-y divide-border/60 rounded-xl border border-border/60">
+																	{appointment.itens.map((item) => (
+																		<li key={item.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2 text-sm">
+																			<span className="w-12 tabular-nums text-muted-foreground">{formatTime(item.data_hora)}</span>
+																			<span className={cn("min-w-0 flex-1 [overflow-wrap:anywhere]", item.status === "cancelado" && "text-muted-foreground line-through")}>
+																				{item.servicos.nome} · {item.servicos.duracao_minutos} min
+																			</span>
+																			<span className="font-medium">{formatBRL(item.servicos.valor)}</span>
+																			{/* Tirar só este serviço: os seguintes sobem para ocupar o tempo liberado */}
+																			{ativo(item) && idsAtivos.length > 1 && (
+																				<div className="basis-full sm:basis-auto">
+																					<AcoesAgendamento agendamento={item} lado="equipe" somenteCancelamento />
+																				</div>
+																			)}
+																		</li>
+																	))}
+																</ul>
+															)}
 															<p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
 																<span className="flex items-center gap-1.5">
 																	<Phone className="h-3 w-3 shrink-0" aria-hidden="true" />
@@ -452,7 +513,7 @@ export default function Appointments() {
 													{/* Ações */}
 													<div className="flex flex-col gap-3 border-t border-border/60 bg-muted/30 px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-5">
 														<div className="min-w-0 flex-1">
-															<AcoesAgendamento agendamento={appointment} lado="equipe" />
+															<AcoesAgendamento agendamento={appointment} lado="equipe" ids={idsAtivos} />
 														</div>
 														<div className="flex flex-wrap items-start gap-2 sm:justify-end">
 															{!appointment.user_id && !encerrado && <LinkClienteAgendamento id={appointment.id} />}
@@ -481,7 +542,7 @@ export default function Appointments() {
 																		</AlertDialogHeader>
 																		<AlertDialogFooter>
 																			<AlertDialogCancel>Voltar</AlertDialogCancel>
-																			<AlertDialogAction onClick={() => updateStatusMutation.mutate(appointment.id)}>
+																			<AlertDialogAction onClick={() => updateStatusMutation.mutate(idsAtivos)}>
 																				Sim, finalizar
 																			</AlertDialogAction>
 																		</AlertDialogFooter>

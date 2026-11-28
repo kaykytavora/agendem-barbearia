@@ -1,25 +1,23 @@
 import { useState } from "react";
 import { AIAssistantButton } from "@/components/ai/AIAssistantButton";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { 
   MapPin, 
-  Star, 
   Search, 
   Filter, 
-  Calendar,
   ArrowLeft,
-  Clock,
-  Phone,
   Loader2,
   LogOut,
   LayoutDashboard,
   User,
   Navigation,
-  AlertCircle
+  AlertCircle,
+  Heart
 } from "lucide-react";
+import { BarbeariaCard } from "@/components/barbershop/BarbeariaCard";
+import { useFavoritas } from "@/hooks/useFavoritas";
+import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
@@ -39,7 +37,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useGeolocation } from "@/hooks/useGeolocation";
-import { resumirHorarios } from "@/lib/horarios";
 import { useBarbershopsList } from "@/hooks/useBarbershopsList";
 import { chaveCidade, cidadeDaLocalizacao, correspondeBusca, proximidadeRegiao, rotuloLocal, type RegiaoCliente } from "@/lib/localizacao-barbearias";
 
@@ -56,6 +53,9 @@ const BarberShops = () => {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState("name_asc");
   const [locationFilter, setLocationFilter] = useState(false);
+  const [soFavoritas, setSoFavoritas] = useState(false);
+  const { favoritas, alternar: alternarFavorita, logado } = useFavoritas();
+  const { toast } = useToast();
   
   // Hook de geolocalização
   const { 
@@ -68,7 +68,7 @@ const BarberShops = () => {
   const buscandoLocalizacao = locationLoading || geocodingLoading;
   const cidadeDetectada = locationFilter ? cidadeDaLocalizacao(detectedCity, cities) : undefined;
   const cidadeSelecionada = cidadeDetectada?.chave ?? (cities.some((cidade) => cidade.chave === selectedCity) ? selectedCity : "");
-  const temFiltros = Boolean(searchTerm.trim() || cidadeSelecionada || selectedCategories.length);
+  const temFiltros = Boolean(searchTerm.trim() || cidadeSelecionada || selectedCategories.length || soFavoritas);
 
   const handleLogout = async () => {
 		await signOut();
@@ -90,7 +90,9 @@ const BarberShops = () => {
                                 shop.servicos.some(s => s.categoria_id === categoryId || s.categoria_id_2 === categoryId)
                               );
 
-      return matchesSearch && matchesCity && matchesCategories;
+      const matchesFavoritas = !soFavoritas || favoritas.has(shop.id);
+
+      return matchesSearch && matchesCity && matchesCategories && matchesFavoritas;
     })
     .sort((a, b) => {
       const regiao = proximidadeRegiao(a, regiaoCliente) - proximidadeRegiao(b, regiaoCliente);
@@ -272,6 +274,18 @@ const BarberShops = () => {
                 <Navigation className="h-4 w-4" />
                 Usar localização
               </Button>
+              {logado && (
+                <Button
+                  variant={soFavoritas ? "default" : "outline"}
+                  size="sm"
+                  aria-pressed={soFavoritas}
+                  onClick={() => setSoFavoritas((v) => !v)}
+                  className="gap-2"
+                >
+                  <Heart className={soFavoritas ? "h-4 w-4 fill-current" : "h-4 w-4"} />
+                  Favoritas{favoritas.size > 0 && ` (${favoritas.size})`}
+                </Button>
+              )}
               <Sheet>
                 <SheetTrigger asChild>
               <Button variant="outline" size="sm">
@@ -331,134 +345,24 @@ const BarberShops = () => {
         </div>
 
         {/* Results */}
-        {/* Layout para Desktop/Tablet */}
-        <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filteredShops.map((shop) => (
-            <Card key={shop.id} variant="glass" className="depth-hover overflow-hidden border-border/70">
-              <div className="aspect-square bg-muted/50 relative">
-                <img 
-                  src={shop.logo_url || '/placeholder.svg'} 
-                  alt={shop.nome}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute top-3 right-3">
-                  <Badge variant="secondary" className="bg-background/90 text-foreground">
-                    <Star className="w-3 h-3 mr-1 fill-yellow-400 text-yellow-400" />
-                    {shop.rating && shop.rating > 0 ? shop.rating.toFixed(1) : 'S/A'}
-                  </Badge>
-                </div>
-              </div>
-              
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">{shop.nome}</CardTitle>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <MapPin className="w-4 h-4" />
-                    {rotuloLocal(shop.bairro, shop.cidade) || "Cidade não informada"}
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    {resumirHorarios(shop.horarios_funcionamento)?.horas ?? "Horário não informado"}
-                  </div>
-                  {shop.telefone && (
-                    <div className="flex items-center gap-1">
-                      <Phone className="w-4 h-4" />
-                      {shop.telefone}
-                    </div>
-                  )}
-                </div>
-              </CardHeader>
-              
-              <CardContent className="pt-0">
-                 <p className="text-xs text-muted-foreground mb-3 h-8 overflow-hidden">
-                   {shop.descricao || 'Esta barbearia ainda não adicionou uma descrição.'}
-                 </p>
-                
-                <div className="flex gap-2">
-                  <Button 
-                    variant="premium" 
-                    className="flex-1"
-                    onClick={() => {
-                      if (!shop.slug) {
-                        console.error('[NAVIGATION ERROR] Slug is null/undefined for:', shop.nome);
-                        return;
-                      }
-                      navigate(`/barbearia/${shop.slug}`);
-                    }}
-                  >
-                    <Calendar className="w-4 h-4 mr-2" />
-                    Ver Agenda
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Layout para Mobile - Cards horizontais compactos */}
-        <div className="md:hidden space-y-4">
-          {filteredShops.map((shop) => (
-            <Card 
-              key={shop.id} 
-              variant="glass"
-              className="depth-hover cursor-pointer overflow-hidden border-border/70"
-              onClick={() => {
-                if (!shop.slug) {
-                  console.error('[NAVIGATION ERROR] Slug is null/undefined for:', shop.nome);
+            <BarbeariaCard
+              key={shop.id}
+              shop={shop}
+              favorita={favoritas.has(shop.id)}
+              onFavoritar={() => {
+                if (!logado) {
+                  toast({ title: "Entre para salvar favoritas", description: "Faça login para guardar suas barbearias preferidas." });
+                  navigate("/client-login");
                   return;
                 }
-                navigate(`/barbearia/${shop.slug}`);
+                alternarFavorita(shop.id);
               }}
-            >
-              <div className="flex">
-                {/* Imagem da barbearia */}
-                <div className="w-20 h-20 bg-muted/50 relative flex-shrink-0 rounded-l-lg overflow-hidden">
-                  <img 
-                    src={shop.logo_url || '/placeholder.svg'} 
-                    alt={shop.nome}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                
-                {/* Conteúdo */}
-                <div className="flex-1 p-4 min-w-0">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-base truncate">{shop.nome}</h3>
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
-                        <MapPin className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate">{rotuloLocal(shop.bairro, shop.cidade) || "Cidade não informada"}</span>
-                      </div>
-                    </div>
-                    <Badge variant="secondary" className="bg-background/90 text-foreground ml-2 flex-shrink-0">
-                      <Star className="w-3 h-3 mr-1 fill-yellow-400 text-yellow-400" />
-                      {shop.rating && shop.rating > 0 ? shop.rating.toFixed(1) : 'S/A'}
-                    </Badge>
-                  </div>
-                  
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      <span>{resumirHorarios(shop.horarios_funcionamento)?.horas ?? "Horário não informado"}</span>
-                    </div>
-                    {shop.telefone && (
-                      <div className="flex items-center gap-1">
-                        <Phone className="w-3 h-3" />
-                        <span className="truncate">{shop.telefone}</span>
-                      </div>
-                    )}
-                  </div>
-                  
-                   <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                     {shop.descricao || 'Esta barbearia ainda não adicionou uma descrição.'}
-                   </p>
-                </div>
-              </div>
-            </Card>
+              onAbrir={() => shop.slug && navigate(`/barbearia/${shop.slug}`)}
+            />
           ))}
-         </div>
+        </div>
 
         {loadError ? (
           <div className="flex flex-col items-center gap-3 text-center py-12">
@@ -478,6 +382,7 @@ const BarberShops = () => {
                 setSelectedCity("");
                 setLocationFilter(false);
                 setSelectedCategories([]);
+                setSoFavoritas(false);
               }}>
                 Limpar filtros
               </Button>

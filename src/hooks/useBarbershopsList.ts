@@ -6,7 +6,7 @@ import { cidadesDisponiveis, cidadeUtil } from "@/lib/localizacao-barbearias";
 import { consultarCep } from "@/services/cep";
 
 export type BarbershopListItem = Database["public"]["Tables"]["barbearias"]["Row"] & {
-  servicos: { categoria_id: string | null; categoria_id_2?: string | null }[]; // IDs das categorias para filtro
+  servicos: { categoria_id: string | null; categoria_id_2?: string | null; valor: number | null }[]; // IDs das categorias para filtro
   horarios_funcionamento: HorarioDia[];
   slug: string;
   rating: number;
@@ -16,7 +16,7 @@ export type Category = Pick<Database["public"]["Tables"]["categorias_servicos"][
 
 async function carregarBarbearias() {
   const [barbeariasRes, categoriasRes] = await Promise.all([
-    supabase.from("barbearias").select("*, servicos!inner ( categoria_id, categoria_id_2 )")
+    supabase.from("barbearias").select("*, servicos!inner ( categoria_id, categoria_id_2, valor )")
       .is("desativada_em", null).not("servicos.responsavel_id", "is", null),
     supabase.from("categorias_servicos").select("id, nome").order("nome"),
   ]);
