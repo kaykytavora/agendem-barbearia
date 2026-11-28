@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +47,7 @@ const SENHA_MINIMA = 8;
 export default function Team() {
   const { user, role, refreshProfile } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -57,6 +59,14 @@ export default function Team() {
     nivel_permissao: "funcionario" as 'funcionario' | 'gerente' | 'dono',
     senha: ""
   });
+
+  function atualizarPublicacao() {
+    void queryClient.invalidateQueries({ queryKey: ["configuracao-publicacao"] });
+    void queryClient.invalidateQueries({ queryKey: ["profissionais-servico"] });
+    void queryClient.invalidateQueries({ queryKey: ["services"] });
+    void queryClient.invalidateQueries({ queryKey: ["barbershops-list"] });
+    void queryClient.invalidateQueries({ queryKey: ["barbershop"] });
+  }
 
   // Helper functions (moved up to be accessible)
   const dbToUiPermission = (dbPermission: 'funcionario' | 'gerente' | 'dono'): 'funcionario' | 'gerente' | 'dono' => {
@@ -274,6 +284,7 @@ export default function Team() {
           description: `Passe o e-mail e a senha inicial para ${formData.nome}. No primeiro acesso será pedida uma senha nova.`,
         });
 
+        atualizarPublicacao();
         setIsDialogOpen(false);
         resetForm();
         loadEmployees();
@@ -347,6 +358,7 @@ export default function Team() {
         });
       }
 
+      atualizarPublicacao();
       loadEmployees();
     } catch (error: unknown) {
       console.error('Erro ao remover funcionário:', error);

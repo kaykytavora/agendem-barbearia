@@ -481,7 +481,7 @@ export default function Dashboard() {
       value: stats.servicos_populares[0]?.nome || "N/A",
       change: `${stats.servicos_populares[0]?.porcentagem || 0}% dos agendamentos`,
       icon: Star,
-      color: "text-purple-500"
+      color: "text-primary"
     }
   ];
 
@@ -664,7 +664,7 @@ export default function Dashboard() {
                 <CardTitle className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-muted-foreground`}>
                   {dashboardStats[3].title}
                 </CardTitle>
-                <Star className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} text-purple-500`} />
+                <Star className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} text-primary`} />
               </CardHeader>
               <CardContent className={isMobile ? 'p-4' : 'p-6'}>
                 <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold`}>{dashboardStats[3].value}</div>

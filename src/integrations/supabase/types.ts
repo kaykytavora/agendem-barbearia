@@ -253,6 +253,7 @@ export type Database = {
           cores_personalizadas: Json | null
           created_at: string
           descricao: string | null
+          desativada_em: string | null
           email_contato: string | null
           endereco: string | null
           gallery_urls: string[] | null
@@ -272,6 +273,7 @@ export type Database = {
           cores_personalizadas?: Json | null
           created_at?: string
           descricao?: string | null
+          desativada_em?: string | null
           email_contato?: string | null
           endereco?: string | null
           gallery_urls?: string[] | null
@@ -291,6 +293,7 @@ export type Database = {
           cores_personalizadas?: Json | null
           created_at?: string
           descricao?: string | null
+          desativada_em?: string | null
           email_contato?: string | null
           endereco?: string | null
           gallery_urls?: string[] | null
@@ -716,6 +719,7 @@ export type Database = {
           barbearia_id: string
           categoria_id: string | null
           categoria_id_2: string | null
+          responsavel_id: string | null
           created_at: string
           descricao: string | null
           duracao_minutos: number
@@ -728,6 +732,7 @@ export type Database = {
           barbearia_id: string
           categoria_id?: string | null
           categoria_id_2?: string | null
+          responsavel_id?: string | null
           created_at?: string
           descricao?: string | null
           duracao_minutos: number
@@ -740,6 +745,7 @@ export type Database = {
           barbearia_id?: string
           categoria_id?: string | null
           categoria_id_2?: string | null
+          responsavel_id?: string | null
           created_at?: string
           descricao?: string | null
           duracao_minutos?: number

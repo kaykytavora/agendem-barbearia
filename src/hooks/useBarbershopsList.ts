@@ -16,7 +16,8 @@ export type Category = Pick<Database["public"]["Tables"]["categorias_servicos"][
 
 async function carregarBarbearias() {
   const [barbeariasRes, categoriasRes] = await Promise.all([
-    supabase.from("barbearias").select("*, servicos ( categoria_id, categoria_id_2 )"),
+    supabase.from("barbearias").select("*, servicos!inner ( categoria_id, categoria_id_2 )")
+      .is("desativada_em", null).not("servicos.responsavel_id", "is", null),
     supabase.from("categorias_servicos").select("id, nome").order("nome"),
   ]);
   if (barbeariasRes.error) throw barbeariasRes.error;
@@ -28,6 +29,8 @@ async function carregarBarbearias() {
     .filter((barbearia) => !cidadeUtil(barbearia.cidade))
     .map((barbearia) => barbearia.cep?.replace(/\D/g, "") ?? "")
     .filter((cep) => cep.length === 8))];
+
+  if (ids.length === 0) return { barbearias: [], categorias: categoriasRes.data ?? [], cidades: [] };
 
   // Avaliações e horários de todas as barbearias de uma vez (antes era uma consulta por barbearia).
   // horarios_funcionamento não tem FK para barbearias, então não dá para embutir no select acima.

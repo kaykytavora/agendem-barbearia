@@ -1,4 +1,4 @@
-import { CheckCircle, Download } from "lucide-react";
+import { BellRing, CheckCircle, Download, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface BookingConfirmationCardProps {
@@ -9,9 +9,11 @@ interface BookingConfirmationCardProps {
   /** Botão para o painel/agendamentos (só para quem está logado ou criou conta) */
   panelAction?: { label: string; onClick: () => void };
   onReset: () => void;
+  /** Volta para a tela inicial (painel do cliente ou página inicial) */
+  onHome: () => void;
 }
 
-export function BookingConfirmationCard({ shopName, detalhes, canDownload, onDownload, panelAction, onReset }: BookingConfirmationCardProps) {
+export function BookingConfirmationCard({ shopName, detalhes, canDownload, onDownload, panelAction, onReset, onHome }: BookingConfirmationCardProps) {
   return (
     <div className="rounded-3xl border bg-card p-6 text-center sm:p-8">
       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-accent">
@@ -19,6 +21,10 @@ export function BookingConfirmationCard({ shopName, detalhes, canDownload, onDow
       </div>
       <h2 className="text-2xl font-bold">Horário reservado!</h2>
       <p className="mt-1 text-muted-foreground">Te esperamos na {shopName}.</p>
+      <p className="mx-auto mt-3 flex max-w-sm items-center justify-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
+        <BellRing className="h-4 w-4 shrink-0" aria-hidden="true" />
+        Você receberá um aviso de confirmação.
+      </p>
 
       <dl className="mx-auto mt-6 max-w-sm space-y-2 rounded-2xl bg-secondary p-4 text-left text-sm">
         {detalhes
@@ -41,6 +47,10 @@ export function BookingConfirmationCard({ shopName, detalhes, canDownload, onDow
             {panelAction.label}
           </Button>
         )}
+        <Button size="lg" variant="outline" onClick={onHome}>
+          <Home />
+          Voltar ao início
+        </Button>
         <Button size="lg" variant="ghost" onClick={onReset}>
           Fazer outro agendamento
         </Button>

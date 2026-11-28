@@ -20,7 +20,6 @@ const PageLoader = () => (
 
 // Carregamento dinâmico (lazy loading) dos componentes de página
 const Index = lazy(() => import("./pages/Index"));
-const UserTypeSelection = lazy(() => import("./pages/UserTypeSelection"));
 const BarberShops = lazy(() => import("./pages/BarberShops"));
 const BarberShopDetails = lazy(() => import("./pages/BarberShopDetails"));
 const Booking = lazy(() => import("./pages/Booking"));
@@ -65,7 +64,7 @@ const App = () => (
 							<PWAInstallPrompt />
 						<Suspense fallback={<PageLoader />}>
 							<Routes>
-								<Route path="/" element={<UserTypeSelection />} />
+								<Route path="/" element={<ClientLogin />} />
 								<Route path="/sobre" element={<Index />} />
 								<Route path="/barbearias" element={<BarberShops />} />
 								<Route path="/barbearia/:slug" element={<BarberShopDetails />} />

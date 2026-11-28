@@ -15,7 +15,6 @@ import {
 	User,
 	Search,
 	Filter,
-	ArrowLeft,
 	CheckCircle,
 	XCircle,
 	Clock3,
@@ -25,6 +24,7 @@ import { generatePDFReceipt } from "@/lib/receipt";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { ClientLayout } from "@/layouts/ClientLayout";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { format, parseISO, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -148,18 +148,10 @@ export default function MyAppointments() {
 
 	if (isLoading) {
 		return (
-			<div className="min-h-screen bg-background p-4">
-				<div className="max-w-4xl mx-auto space-y-6">
+			<ClientLayout>
+			<div className="page-enter mx-auto max-w-4xl space-y-6 px-4 py-6 lg:px-8 lg:py-10">
 					{/* Header */}
 					<div className="flex items-center gap-4">
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() => navigate(-1)}
-							className="p-2"
-						>
-							<ArrowLeft className="w-4 h-4" />
-						</Button>
 						<h1 className="text-2xl font-bold">Meus Agendamentos</h1>
 					</div>
 
@@ -176,23 +168,15 @@ export default function MyAppointments() {
 						))}
 					</div>
 				</div>
-			</div>
+			</ClientLayout>
 		);
 	}
 
 	return (
-		<div className="min-h-screen bg-background p-4">
-			<div className="max-w-4xl mx-auto space-y-6">
+			<ClientLayout>
+			<div className="page-enter mx-auto max-w-4xl space-y-6 px-4 py-6 lg:px-8 lg:py-10">
 				{/* Header */}
 				<div className="flex items-center gap-4">
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={() => navigate(-1)}
-						className="p-2"
-					>
-						<ArrowLeft className="w-4 h-4" />
-					</Button>
 					<h1 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold`}>
 						Meus Agendamentos
 					</h1>
@@ -385,6 +369,6 @@ export default function MyAppointments() {
 					</div>
 				)}
 			</div>
-		</div>
+		</ClientLayout>
 	);
 }

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'agendem-v2.0.0';
+const CACHE_NAME = 'agendem-v2.0.1';
 const OFFLINE_URL = '/offline.html';
 const CACHE_EXPIRY_TIME = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -14,7 +14,7 @@ const STATIC_CACHE_ASSETS = [
 // Rotas públicas que funcionam offline
 const PUBLIC_ROUTES = [
   '/',
-  '/barbershops',
+  '/barbearias',
   '/client-login',
   '/register',
   '/forgot-password'

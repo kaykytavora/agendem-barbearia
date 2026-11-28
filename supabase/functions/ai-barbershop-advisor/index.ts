@@ -177,8 +177,10 @@ serve(async (req) => {
       .from("barbearias")
       .select(`
         id, nome, slug, cidade, bairro, logo_url, telefone,
-        servicos (nome, valor)
+        servicos!inner (nome, valor)
       `)
+      .is("desativada_em", null)
+      .not("servicos.responsavel_id", "is", null)
       .not("slug", "is", null);
 
     // Filtrar por cidade (da mensagem ou do contexto do cliente)

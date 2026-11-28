@@ -1,8 +1,8 @@
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface ProfessionalPickerProps {
   professionals: { id: string; nome: string }[];
-  selectedId: string | null;
+  selectedId: string | null | undefined;
   onSelect: (id: string | null) => void;
 }
 
@@ -14,19 +14,16 @@ export function ProfessionalPicker({ professionals, selectedId, onSelect }: Prof
       {options.map((option) => {
         const selected = option.id === selectedId;
         return (
-          <button
+          <Button
             key={option.id ?? "qualquer"}
             type="button"
+            variant={selected ? "default" : "glass"}
             aria-pressed={selected}
             onClick={() => onSelect(option.id)}
-            className={cn(
-              "h-11 rounded-full border px-4 text-sm font-semibold transition-colors",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              selected ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-input",
-            )}
+            className="h-auto min-h-11 max-w-full whitespace-normal rounded-full px-4 py-2 text-center [overflow-wrap:anywhere]"
           >
             {option.nome}
-          </button>
+          </Button>
         );
       })}
     </div>

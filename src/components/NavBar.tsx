@@ -1,3 +1,4 @@
+import { AgendemIcon } from "@/components/AgendemIcon";
 import { Button } from "@/components/ui/button";
 import { Calendar, Users, Settings, Menu, X } from "lucide-react";
 import { useState } from "react";
@@ -27,7 +28,7 @@ export function NavBar({ className }: NavBarProps) {
           {/* Logo */}
           <div className="flex items-center">
             <div className="flex-shrink-0 flex items-center">
-              <img src="/icon-agendem.svg" alt="agendem" className={`${isMobile ? 'w-6 h-6 mr-2' : 'w-8 h-8 mr-2'}`} />
+              <AgendemIcon className={`${isMobile ? 'w-6 h-6 mr-2 text-primary' : 'w-8 h-8 mr-2 text-primary'}`} />
               <span className={`${isMobile ? 'text-lg' : 'text-xl'} font-bold bg-gradient-primary bg-clip-text text-transparent`}>
                 agendem
               </span>

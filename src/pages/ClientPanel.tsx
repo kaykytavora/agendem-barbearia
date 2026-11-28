@@ -1,23 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
 	User,
 	Calendar,
 	Star,
 	Clock,
 	History,
-	LogOut,
 	MapPin,
-	Settings,
+	Plus,
 	RefreshCw,
 	Scissors,
-	HelpCircle,
+	type LucideIcon,
 } from "lucide-react";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { TourCliente } from "@/components/onboarding/TourCliente";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -32,10 +28,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { FeedbackModal } from "@/components/FeedbackModal";
-import { useResponsive } from "@/hooks/use-mobile";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { AcoesAgendamento } from "@/components/AcoesAgendamento";
 import { CartoesSelos } from "@/components/CartoesSelos";
+import { ClientLayout } from "@/layouts/ClientLayout";
 
 interface PendingFeedback {
 	id: string;
@@ -55,85 +51,28 @@ interface PendingFeedback {
 	user_id: string;
 }
 
-const ClientPanelSkeleton = () => {
-	const { isMobile } = useResponsive();
-	return (
-		<div className="min-h-screen bg-gradient-bg">
-			{/* Header Skeleton */}
-			<div className="border-b border-border/50 bg-card/30 backdrop-blur-sm">
-				<div className={`max-w-5xl mx-auto ${isMobile ? 'px-3 py-4' : 'px-4 sm:px-6 lg:px-8 py-6'}`}>
-					<div className={`flex items-center ${isMobile ? 'flex-col gap-3' : 'justify-between'}`}>
-						<div className={`flex items-center ${isMobile ? 'gap-3' : 'gap-4'}`}>
-							<Skeleton className={`${isMobile ? 'w-12 h-12' : 'w-16 h-16'} rounded-full`} />
-							<div className="space-y-2">
-								<Skeleton className={`${isMobile ? 'h-6 w-32' : 'h-8 w-48'}`} />
-								<Skeleton className={`${isMobile ? 'h-4 w-40' : 'h-5 w-64'}`} />
-							</div>
-						</div>
-						<div className={`flex items-center ${isMobile ? 'gap-1 w-full' : 'gap-2'}`}>
-							<Skeleton className={`${isMobile ? 'h-8 flex-1' : 'h-9 w-36'}`} />
-							<Skeleton className={`${isMobile ? 'h-8 w-16' : 'h-9 w-24'}`} />
-						</div>
-					</div>
-				</div>
+const ClientPanelSkeleton = () => (
+	<div className="mx-auto max-w-5xl space-y-6 px-4 py-6 lg:px-8 lg:py-10" aria-busy="true">
+		<div className="flex items-end justify-between gap-4">
+			<div className="space-y-2">
+				<Skeleton className="h-4 w-40" />
+				<Skeleton className="h-8 w-56" />
 			</div>
-
-			<div className={`max-w-5xl mx-auto ${isMobile ? 'px-3 py-4' : 'px-4 sm:px-6 lg:px-8 py-8'}`}>
-				<div className={`grid ${isMobile ? 'grid-cols-1 gap-4' : 'lg:grid-cols-3 gap-8'}`}>
-					<div className={`${isMobile ? '' : 'lg:col-span-2'} space-y-6`}>
-						{/* Upcoming Appointments Skeleton */}
-						<Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-							<CardHeader className={isMobile ? 'p-4' : ''}>
-								<Skeleton className={`${isMobile ? 'h-5 w-1/2' : 'h-6 w-1/2'}`} />
-							</CardHeader>
-							<CardContent className={`${isMobile ? 'space-y-3 p-4' : 'space-y-4'}`}>
-								<div className={`${isMobile ? 'p-3' : 'p-4'} border rounded-lg bg-background/50 space-y-3`}>
-									<div className="flex justify-between items-start">
-										<Skeleton className={`${isMobile ? 'h-4 w-3/4' : 'h-5 w-3/4'}`} />
-										<Skeleton className={`${isMobile ? 'h-4 w-16' : 'h-5 w-20'}`} />
-									</div>
-									<div className={`flex items-center ${isMobile ? 'gap-2' : 'gap-4'}`}>
-										<Skeleton className={`${isMobile ? 'h-3 w-1/3' : 'h-4 w-1/3'}`} />
-										<Skeleton className={`${isMobile ? 'h-3 w-1/3' : 'h-4 w-1/3'}`} />
-									</div>
-								</div>
-								<div className={`${isMobile ? 'p-3' : 'p-4'} border rounded-lg bg-background/50 space-y-3`}>
-									<div className="flex justify-between items-start">
-										<Skeleton className={`${isMobile ? 'h-4 w-3/4' : 'h-5 w-3/4'}`} />
-										<Skeleton className={`${isMobile ? 'h-4 w-16' : 'h-5 w-20'}`} />
-									</div>
-									<div className={`flex items-center ${isMobile ? 'gap-2' : 'gap-4'}`}>
-										<Skeleton className={`${isMobile ? 'h-3 w-1/3' : 'h-4 w-1/3'}`} />
-										<Skeleton className={`${isMobile ? 'h-3 w-1/3' : 'h-4 w-1/3'}`} />
-									</div>
-								</div>
-							</CardContent>
-						</Card>
-					</div>
-
-					<div className={`${isMobile ? '' : 'space-y-6'}`}>
-						<Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-							<CardHeader className={isMobile ? 'p-4' : ''}>
-								<Skeleton className={`${isMobile ? 'h-5 w-3/4' : 'h-6 w-3/4'}`} />
-							</CardHeader>
-							<CardContent className={`${isMobile ? 'space-y-2 p-4' : 'space-y-3'}`}>
-								<Skeleton className={`${isMobile ? 'h-8 w-full' : 'h-10 w-full'}`} />
-								<Skeleton className={`${isMobile ? 'h-8 w-full' : 'h-10 w-full'}`} />
-							</CardContent>
-						</Card>
-					</div>
-				</div>
-			</div>
+			<Skeleton className="h-10 w-44 rounded-full" />
 		</div>
-	);
-};
+		<Skeleton className="h-36 w-full rounded-3xl" />
+		<div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+			<Skeleton className="h-72 rounded-3xl" />
+			<Skeleton className="h-40 rounded-3xl" />
+		</div>
+	</div>
+);
 
 const ClientPanel = () => {
-	const { user, signOut, profile } = useAuth();
+	const { profile } = useAuth();
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const { toast } = useToast();
-	const { isMobile } = useResponsive();
 	const [selectedFeedback, setSelectedFeedback] = useState<PendingFeedback | null>(null);
 	const [tourAberto, setTourAberto] = useState(false);
 
@@ -262,11 +201,6 @@ const ClientPanel = () => {
 
 	const loading = isLoadingUpcoming || isLoadingPast || isLoadingFeedbacks || isLoadingUserFeedbacks;
 
-	const handleLogout = async () => {
-		await signOut();
-		navigate("/");
-	};
-
 	// A lógica de filtro agora é feita na API, então podemos remover
 	// const upcomingAppointments = agendamentos.filter(...)
 	// const pastAppointments = agendamentos.filter(...)
@@ -316,437 +250,223 @@ const ClientPanel = () => {
 	};
 
 	if (loading) {
-		return <ClientPanelSkeleton />;
+		return (
+			<ClientLayout>
+				<ClientPanelSkeleton />
+			</ClientLayout>
+		);
 	}
 
+	const proximos = upcomingAppointments ?? [];
+	const historico = pastAppointments ?? [];
+	const proximo = proximos[0];
+	const outrosProximos = proximos.slice(1, 4);
+	const ultimo = [...proximos, ...historico]
+		.sort((a, b) => new Date(b.data_hora).getTime() - new Date(a.data_hora).getTime())[0];
+	const primeiroNome = profile?.name?.split(" ")[0] || "Cliente";
+
 	return (
-		<div className="min-h-screen bg-gradient-bg">
-		{/* Header */}
-			<div className="border-b border-border/50 bg-card/30 backdrop-blur-sm">
-				<div className={`max-w-5xl mx-auto ${isMobile ? 'px-4 py-3' : 'px-4 sm:px-6 lg:px-8 py-6'}`}>
-					{/* Mobile Layout */}
-					{isMobile ? (
-						<div className="space-y-3">
-							{/* Top row: Avatar + Name + Theme Toggle */}
-							<div className="flex items-center justify-between">
-								<div className="flex items-center gap-3 flex-1 min-w-0">
-									<Avatar className="w-10 h-10 shrink-0">
-										<AvatarFallback className="bg-primary/10">
-											<User className="w-5 h-5 text-primary" />
-										</AvatarFallback>
-									</Avatar>
-									<div className="min-w-0 flex-1">
-										<h1 className="text-base font-semibold truncate">
-											Olá, {profile?.name?.split(' ')[0] || "Cliente"}!
-										</h1>
-										<p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-									</div>
-								</div>
-								<ThemeToggle />
+		<ClientLayout onAjuda={() => setTourAberto(true)}>
+			<div className="page-enter mx-auto max-w-5xl space-y-6 px-4 py-6 lg:px-8 lg:py-10">
+				{/* Saudação */}
+				<header className="flex flex-wrap items-end justify-between gap-4">
+					<div>
+						<p className="text-sm text-muted-foreground capitalize">
+							{format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}
+						</p>
+						<h1 className="text-2xl font-bold sm:text-3xl">Olá, {primeiroNome}!</h1>
+					</div>
+					<Button onClick={() => navigate("/barbearias")} className="gap-2">
+						<Plus className="h-4 w-4" aria-hidden="true" />
+						Novo agendamento
+					</Button>
+				</header>
+
+				{/* Destaque: próximo horário, ou atalho para agendar de novo */}
+				{proximo ? (
+					<section aria-labelledby="proximo-titulo" className="overflow-hidden rounded-3xl bg-primary text-primary-foreground shadow-brand-lg">
+						<div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-6">
+							<div className="flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-2xl bg-primary-foreground/10">
+								<span className="text-xs font-medium uppercase opacity-80">
+									{format(new Date(proximo.data_hora), "MMM", { locale: ptBR }).replace(".", "")}
+								</span>
+								<span className="font-display text-3xl font-bold leading-none">
+									{format(new Date(proximo.data_hora), "dd")}
+								</span>
 							</div>
-							{/* Bottom row: Action buttons */}
-							<div className="flex items-center gap-2">
-								<Button
-									variant="outline"
-									size="sm"
-									className="flex-1 h-9"
-									onClick={() => navigate("/client-settings")}
-								>
-									<Settings className="w-4 h-4 mr-1.5" />
-									Configurações
-								</Button>
-								<Button 
-									variant="ghost" 
-									size="sm"
-									className="h-9 px-3"
-									onClick={handleLogout}
-								>
-									<LogOut className="w-4 h-4 mr-1.5" />
-									Sair
-								</Button>
+							<div className="min-w-0 flex-1 space-y-1">
+								<p id="proximo-titulo" className="text-sm font-medium opacity-80">Seu próximo horário</p>
+								<h2 className="truncate text-xl font-bold">{proximo.barbearias?.nome || "Barbearia"}</h2>
+								<p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm opacity-90">
+									<span className="flex items-center gap-1.5">
+										<Clock className="h-4 w-4" aria-hidden="true" />
+										{format(new Date(proximo.data_hora), "EEEE, HH:mm", { locale: ptBR })}
+									</span>
+									<span className="flex items-center gap-1.5">
+										<Scissors className="h-4 w-4" aria-hidden="true" />
+										{proximo.servicos?.nome || "Serviço"}
+									</span>
+									{proximo.funcionarios && (
+										<span className="flex items-center gap-1.5">
+											<User className="h-4 w-4" aria-hidden="true" />
+											{proximo.funcionarios.nome}
+										</span>
+									)}
+								</p>
 							</div>
+							<div className="shrink-0 self-start sm:self-center">{getStatusBadge(proximo.status)}</div>
 						</div>
-					) : (
-						/* Desktop Layout */
-						<div className="flex items-center justify-between">
-							<div className="flex items-center gap-4">
-								<Avatar className="w-16 h-16">
-									<AvatarFallback className="bg-primary/10">
-										<User className="w-8 h-8 text-primary" />
-									</AvatarFallback>
-								</Avatar>
-								<div>
-									<h1 className="text-2xl font-bold">
-										Olá, {profile?.name || "Cliente"}!
-									</h1>
-									<p className="text-muted-foreground">{user?.email}</p>
-								</div>
-							</div>
-							<div className="flex items-center gap-2">
-								<ThemeToggle />
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => navigate("/client-settings")}
-								>
-									<Settings className="w-4 h-4 mr-2" />
-									Configurações
-								</Button>
-								<Button 
-									variant="ghost" 
-									size="sm"
-									onClick={handleLogout}
-								>
-									<LogOut className="w-4 h-4 mr-2" />
-									Sair
-								</Button>
-							</div>
+						<div className="border-t border-primary-foreground/15 bg-card px-5 py-3 text-foreground sm:px-6">
+							<AcoesAgendamento agendamento={proximo} lado="cliente" />
 						</div>
-					)}
-				</div>
-			</div>
+					</section>
+				) : (
+					<section className="flex flex-col gap-4 rounded-3xl border border-border/60 bg-card p-5 shadow-brand-md sm:flex-row sm:items-center sm:p-6">
+						<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
+							<Calendar className="h-6 w-6 text-primary" aria-hidden="true" />
+						</div>
+						<div className="min-w-0 flex-1">
+							<h2 className="text-lg font-bold">Nenhum horário marcado</h2>
+							<p className="text-sm text-muted-foreground">
+								{ultimo?.barbearias
+									? <>Seu último corte foi na <strong className="text-foreground">{ultimo.barbearias.nome}</strong> em {format(new Date(ultimo.data_hora), "dd/MM/yyyy")}.</>
+									: "Encontre uma barbearia e marque seu primeiro horário."}
+							</p>
+						</div>
+						{ultimo?.barbearias?.slug ? (
+							<Button onClick={() => navigate(`/barbearia/${ultimo.barbearias?.slug}`)} className="gap-2">
+								<RefreshCw className="h-4 w-4" aria-hidden="true" />
+								Agendar novamente
+							</Button>
+						) : (
+							<Button onClick={() => navigate("/barbearias")} className="gap-2">
+								<MapPin className="h-4 w-4" aria-hidden="true" />
+								Encontrar barbearias
+							</Button>
+						)}
+					</section>
+				)}
 
-			<div className={`max-w-5xl mx-auto ${isMobile ? 'px-3 py-4' : 'px-4 sm:px-6 lg:px-8 py-8'}`}>
-				<div className={`grid ${isMobile ? 'grid-cols-1 gap-4' : 'lg:grid-cols-3 gap-8'}`}>
-					{/* Main Content */}
-					<div className={`${isMobile ? '' : 'lg:col-span-2'} ${isMobile ? 'space-y-4' : 'space-y-6'}`}>
-						{/* Último Local Agendado */}
-						{(() => {
-							// Combina todos os agendamentos para encontrar o mais recente
-							const allAppointments = [
-								...(upcomingAppointments || []),
-								...(pastAppointments || []),
-							];
-							
-							// Ordena por data mais recente e pega o primeiro
-							const lastAppointment = allAppointments.length > 0
-								? allAppointments.sort((a, b) => 
-									new Date(b.data_hora).getTime() - new Date(a.data_hora).getTime()
-								)[0]
-								: null;
-
-							if (!lastAppointment?.barbearias) return null;
-
-							return (
-								<Card className="border-primary/30 bg-primary/5">
-									<CardHeader className={isMobile ? 'p-4 pb-2' : 'pb-2'}>
-										<CardTitle className={`flex items-center gap-2 ${isMobile ? 'text-base' : 'text-lg'}`}>
-											<Scissors className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} text-primary`} />
-											Último Local Agendado
-										</CardTitle>
-									</CardHeader>
-									<CardContent className={isMobile ? 'p-4 pt-2' : 'pt-2'}>
-										<div className={`flex ${isMobile ? 'flex-col gap-3' : 'items-center justify-between'}`}>
-											<div className="flex items-center gap-3">
-												<div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-													<Scissors className="w-5 h-5 text-primary" />
-												</div>
-												<div>
-													<h4 className={`font-semibold ${isMobile ? 'text-sm' : ''}`}>
-														{lastAppointment.barbearias.nome}
-													</h4>
-													<p className={`text-muted-foreground ${isMobile ? 'text-xs' : 'text-sm'}`}>
-														Último agendamento: {format(new Date(lastAppointment.data_hora), "dd/MM/yyyy", { locale: ptBR })}
-													</p>
-												</div>
-											</div>
-											<Button
-												variant="default"
-												size={isMobile ? 'sm' : 'default'}
-												className={`${isMobile ? 'w-full' : ''} gap-2`}
-												onClick={() => navigate(`/barbearia/${lastAppointment.barbearias?.slug}`)}
-											>
-												<RefreshCw className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
-												Agendar Novamente
-											</Button>
-										</div>
-									</CardContent>
-								</Card>
-							);
-						})()}
-
-						{/* Avaliações Pendentes */}
-						{pendingFeedbacks && pendingFeedbacks.length > 0 && (
-							<Card className="border-yellow-500/50 bg-yellow-500/10">
-								<CardHeader className={isMobile ? 'p-4' : ''}>
-									<CardTitle className={`flex items-center gap-2 text-yellow-600 ${isMobile ? 'text-lg' : ''}`}>
-										<Star className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-										Avaliações Pendentes
-									</CardTitle>
-								</CardHeader>
-								<CardContent className={isMobile ? 'p-4' : ''}>
-									<div className={`${isMobile ? 'space-y-3' : 'space-y-4'}`}>
-										{pendingFeedbacks.map((feedback) => (
-											<div
-												key={feedback.id}
-												className={`${isMobile ? 'p-3' : 'p-4'} border border-yellow-500/20 rounded-lg bg-background/50 flex ${isMobile ? 'flex-col gap-3' : 'justify-between items-center'}`}
-											>
-												<div className={isMobile ? 'flex-1' : ''}>
-													<h4 className={`font-medium ${isMobile ? 'text-sm' : ''}`}>
-														{feedback.barbearias?.nome || "Barbearia"}
-													</h4>
-													<p className={`${isMobile ? 'text-xs' : 'text-sm'} text-muted-foreground`}>
-														Serviço concluído em{" "}
-														{format(new Date(feedback.created_at), isMobile ? "dd/MM/yyyy" : "PPP", {
-															locale: ptBR,
-														})}
-													</p>
-												</div>
-												<Button
-													variant="outline"
-													size="sm"
-													className={isMobile ? 'w-full text-xs' : ''}
-													onClick={() => setSelectedFeedback(feedback)}
-												>
-													Avaliar Agora
-												</Button>
-											</div>
-										))}
+				{/* Avaliações pendentes */}
+				{pendingFeedbacks && pendingFeedbacks.length > 0 && (
+					<section aria-labelledby="avaliar-titulo" className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-4 sm:p-5">
+						<h2 id="avaliar-titulo" className="mb-3 flex items-center gap-2 font-semibold text-amber-800 dark:text-amber-300">
+							<Star className="h-4 w-4" aria-hidden="true" />
+							Como foi seu atendimento?
+						</h2>
+						<ul className="space-y-2">
+							{pendingFeedbacks.map((feedback) => (
+								<li key={feedback.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-background/70 p-3">
+									<div className="min-w-0">
+										<p className="truncate text-sm font-medium">{feedback.barbearias?.nome || "Barbearia"}</p>
+										<p className="text-xs text-muted-foreground">
+											Concluído em {format(new Date(feedback.created_at), "d 'de' MMMM", { locale: ptBR })}
+										</p>
 									</div>
-								</CardContent>
-							</Card>
+									<Button size="sm" variant="outline" onClick={() => setSelectedFeedback(feedback)}>Avaliar</Button>
+								</li>
+							))}
+						</ul>
+					</section>
+				)}
+
+				<div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
+					<div className="min-w-0 space-y-6">
+						{/* Outros próximos horários */}
+						{outrosProximos.length > 0 && (
+							<Secao titulo="Também marcados" icone={Calendar}
+								acao={proximos.length > 4 ? { label: "Ver todos", onClick: () => navigate("/meus-agendamentos") } : undefined}>
+								<ul className="divide-y divide-border/60">
+									{outrosProximos.map((ag) => (
+										<li key={ag.id} className="space-y-2 py-3 first:pt-0 last:pb-0">
+											<LinhaAgendamento
+												data={ag.data_hora}
+												titulo={ag.barbearias?.nome || "Barbearia"}
+												subtitulo={[ag.servicos?.nome, ag.funcionarios?.nome].filter(Boolean).join(" · ")}
+												badge={getStatusBadge(ag.status)}
+												comHora
+											/>
+											<AcoesAgendamento agendamento={ag} lado="cliente" />
+										</li>
+									))}
+								</ul>
+							</Secao>
 						)}
 
-						{/* Próximos Agendamentos */}
-						<Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-							<CardHeader className={isMobile ? 'p-4' : ''}>
-								<CardTitle className={`flex items-center gap-2 ${isMobile ? 'text-lg' : ''}`}>
-									<Calendar className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} text-primary`} />
-									Próximos Agendamentos
-								</CardTitle>
-							</CardHeader>
-							<CardContent className={isMobile ? 'p-4' : ''}>
-								{(upcomingAppointments?.length ?? 0) > 0 ? (
-								<div className={`${isMobile ? 'space-y-3' : 'space-y-4'}`}>
-									{upcomingAppointments?.slice(0, 3).map((ag) => (
-											<div
-												key={ag.id}
-												className={`${isMobile ? 'p-3' : 'p-4'} border rounded-lg bg-background/50`}
-											>
-												<div className={`flex ${isMobile ? 'flex-col gap-2' : 'justify-between items-start'} mb-2`}>
-													<div className={isMobile ? 'flex-1' : ''}>
-														<h4 className={`font-medium ${isMobile ? 'text-sm' : ''}`}>
-															{ag.barbearias?.nome || "Barbearia"}
-														</h4>
-														<p className={`${isMobile ? 'text-xs' : 'text-sm'} text-muted-foreground`}>
-															{ag.servicos?.nome || "Serviço"}
-														</p>
-													</div>
-													{getStatusBadge(ag.status)}
-												</div>
-												<div className={`flex ${isMobile ? 'flex-col gap-2' : 'items-center gap-4'} ${isMobile ? 'text-xs' : 'text-sm'} text-muted-foreground`}>
-													<div className="flex items-center gap-1">
-														<Calendar className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
-														{format(new Date(ag.data_hora), "dd/MM/yyyy", {
-															locale: ptBR,
-														})}
-													</div>
-													<div className="flex items-center gap-1">
-														<Clock className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
-														{format(new Date(ag.data_hora), "HH:mm", {
-															locale: ptBR,
-														})}
-													</div>
-													{ag.funcionarios && (
-														<div className="flex items-center gap-1">
-															<User className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
-															{ag.funcionarios.nome}
-														</div>
-													)}
-												</div>
-										<div className="mt-3"><AcoesAgendamento agendamento={ag} lado="cliente" /></div>
-											</div>
-										))}
-										{(upcomingAppointments?.length ?? 0) > 3 && (
-											<Button
-												variant="link"
-												className={`w-full text-primary ${isMobile ? 'text-xs' : ''}`}
-												onClick={() => navigate("/meus-agendamentos")}
-											>
-												Ver todos os próximos agendamentos
-											</Button>
-										)}
-									</div>
-								) : (
-									<p className={`text-muted-foreground ${isMobile ? 'text-sm' : ''}`}>
-										Você não tem agendamentos futuros.
-									</p>
-								)}
-							</CardContent>
-						</Card>
-
-						{profileUserId && <CartoesSelos userId={profileUserId} />}
 						{/* Histórico */}
-						<Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-							<CardHeader className={isMobile ? 'p-4' : ''}>
-								<CardTitle className={`flex items-center gap-2 ${isMobile ? 'text-lg' : ''}`}>
-									<History className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-									Histórico de Agendamentos
-								</CardTitle>
-							</CardHeader>
-							<CardContent className={isMobile ? 'p-4' : ''}>
-								{(pastAppointments?.length ?? 0) > 0 ? (
-								<div className={`${isMobile ? 'space-y-3' : 'space-y-4'}`}>
-									{pastAppointments?.slice(0, 4).map((ag) => (
-											<div
-												key={ag.id}
-												className={`${isMobile ? 'p-3' : 'p-4'} border rounded-lg bg-background/50`}
-											>
-												<div className={`flex ${isMobile ? 'flex-col gap-2' : 'justify-between items-start'}`}>
-													<div className={isMobile ? 'flex-1' : ''}>
-														<h4 className={`font-medium ${isMobile ? 'text-sm' : ''}`}>
-															{ag.barbearias?.nome || "Barbearia"}
-														</h4>
-														<p className={`${isMobile ? 'text-xs' : 'text-sm'} text-muted-foreground`}>
-															{ag.servicos?.nome || "Serviço"}
-														</p>
-													</div>
-													<div className="flex items-center gap-2">
-														{/* Star rating could be added here later */}
-														{getStatusBadge(ag.status)}
-													</div>
-												</div>
-										{ag.status === "cancelado" && (
-											<div className="mt-2"><AcoesAgendamento agendamento={ag} lado="cliente" /></div>
-										)}
-											</div>
-										))}
-										{(pastAppointments?.length ?? 0) > 4 && (
-											<Button
-												variant="link"
-												className={`w-full text-primary ${isMobile ? 'text-xs' : ''}`}
-												onClick={() => navigate("/meus-agendamentos")}
-											>
-												Ver todo o histórico
-											</Button>
-										)}
-									</div>
-								) : (
-									<p className={`text-muted-foreground ${isMobile ? 'text-sm' : ''}`}>
-										Nenhum agendamento no seu histórico.
-									</p>
-								)}
-							</CardContent>
-						</Card>
+						<Secao titulo="Histórico" icone={History}
+							acao={historico.length > 0 ? { label: "Ver tudo", onClick: () => navigate("/meus-agendamentos") } : undefined}>
+							{historico.length > 0 ? (
+								<ul className="divide-y divide-border/60">
+									{historico.slice(0, 5).map((ag) => (
+										<li key={ag.id} className="py-3 first:pt-0 last:pb-0">
+											<LinhaAgendamento
+												data={ag.data_hora}
+												titulo={ag.barbearias?.nome || "Barbearia"}
+												subtitulo={ag.servicos?.nome || "Serviço"}
+												badge={getStatusBadge(ag.status)}
+											/>
+											{ag.status === "cancelado" && (
+												<div className="mt-2"><AcoesAgendamento agendamento={ag} lado="cliente" /></div>
+											)}
+										</li>
+									))}
+								</ul>
+							) : (
+								<p className="text-sm text-muted-foreground">Nenhum agendamento no seu histórico ainda.</p>
+							)}
+						</Secao>
 
-						{/* Minhas Avaliações (com respostas da barbearia) */}
+						{/* Minhas avaliações */}
 						{userFeedbacks && userFeedbacks.length > 0 && (
-							<Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-								<CardHeader className={isMobile ? 'p-4' : ''}>
-									<CardTitle className={`flex items-center gap-2 ${isMobile ? 'text-lg' : ''}`}>
-										<Star className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-										Minhas Avaliações
-									</CardTitle>
-								</CardHeader>
-								<CardContent className={isMobile ? 'p-4' : ''}>
-									<div className={`${isMobile ? 'space-y-3' : 'space-y-4'}`}>
-										{userFeedbacks.slice(0, 3).map((feedback) => (
-											<div
-												key={feedback.id}
-												className={`${isMobile ? 'p-3' : 'p-4'} border rounded-lg bg-background/50`}
-											>
-												<div className="mb-2">
-													<h4 className={`font-medium ${isMobile ? 'text-sm' : ''}`}>
-														{feedback.barbearias?.nome || "Barbearia"}
-													</h4>
-													<div className="flex items-center gap-1 mt-1">
-														{[1, 2, 3, 4, 5].map((star) => (
-															<Star
-																key={star}
-																className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'} ${
-																	(feedback.rating || 0) >= star
-																		? 'text-yellow-400 fill-yellow-400'
-																		: 'text-gray-300'
-																}`}
-															/>
-														))}
-														<span className={`ml-2 ${isMobile ? 'text-xs' : 'text-sm'} text-muted-foreground`}>
-															{format(new Date(feedback.created_at), "dd/MM/yyyy", { locale: ptBR })}
-														</span>
-													</div>
-												</div>
-												{feedback.comment && (
-													<p className={`${isMobile ? 'text-xs' : 'text-sm'} text-muted-foreground mb-2`}>
-														{feedback.comment}
-													</p>
-												)}
-												{feedback.response && (
-													<div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded border-l-4 border-blue-500">
-														<p className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-blue-700 dark:text-blue-400`}>
-															Resposta da barbearia:
-														</p>
-														<p className={`${isMobile ? 'text-xs' : 'text-sm'} text-blue-600 dark:text-blue-300 mt-1`}>
-															{feedback.response}
-														</p>
-														{feedback.responded_by_profile?.name && (
-															<p className={`${isMobile ? 'text-xs' : 'text-xs'} text-blue-500 dark:text-blue-400 mt-1`}>
-																- {feedback.responded_by_profile.name}
-															</p>
-														)}
-													</div>
-												)}
+							<Secao titulo="Minhas avaliações" icone={Star}>
+								<ul className="space-y-4">
+									{userFeedbacks.slice(0, 3).map((feedback) => (
+										<li key={feedback.id} className="space-y-1.5">
+											<div className="flex flex-wrap items-center justify-between gap-2">
+												<p className="text-sm font-medium">{feedback.barbearias?.nome || "Barbearia"}</p>
+												<span className="text-xs text-muted-foreground">
+													{format(new Date(feedback.created_at), "dd/MM/yyyy", { locale: ptBR })}
+												</span>
 											</div>
-										))}
-										{userFeedbacks.length > 3 && (
-											<Button
-												variant="link"
-												className={`w-full text-primary ${isMobile ? 'text-xs' : ''}`}
-												onClick={() => navigate("/minhas-avaliacoes")}
-											>
-												Ver todas as minhas avaliações
-											</Button>
-										)}
-									</div>
-								</CardContent>
-							</Card>
+											<div className="flex" role="img" aria-label={`${feedback.rating || 0} de 5 estrelas`}>
+												{[1, 2, 3, 4, 5].map((star) => (
+													<Star key={star} aria-hidden="true"
+														className={`h-3.5 w-3.5 ${(feedback.rating || 0) >= star ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/40"}`} />
+												))}
+											</div>
+											{feedback.comment && <p className="text-sm text-muted-foreground">{feedback.comment}</p>}
+											{feedback.response && (
+												<div className="rounded-xl border-l-2 border-primary bg-primary/5 p-2.5 text-sm">
+													<p className="font-medium text-primary">Resposta da barbearia</p>
+													<p className="mt-0.5 text-muted-foreground">{feedback.response}</p>
+												</div>
+											)}
+										</li>
+									))}
+								</ul>
+							</Secao>
 						)}
 					</div>
 
-					{/* Sidebar */}
-					<div className={`${isMobile ? 'space-y-4' : 'space-y-6'}`}>
-						{/* Quick Actions */}
-						<Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-							<CardHeader className={isMobile ? 'p-4' : ''}>
-								<CardTitle className={isMobile ? 'text-lg' : ''}>Ações Rápidas</CardTitle>
-							</CardHeader>
-							<CardContent className={`${isMobile ? 'space-y-2 p-4' : 'space-y-3'}`}>
-								<Button
-									variant="premium"
-									className={`w-full ${isMobile ? 'text-sm py-2' : ''}`}
-									onClick={() => navigate("/barbearias")}
-								>
-									<Calendar className={`${isMobile ? 'w-3 h-3 mr-2' : 'w-4 h-4 mr-2'}`} />
-									Novo Agendamento
+					{/* Coluna lateral */}
+					<div className="space-y-6">
+						{profileUserId && <CartoesSelos userId={profileUserId} />}
+						{proximo && ultimo?.barbearias?.slug && (
+							<section className="rounded-3xl border border-border/60 bg-card p-5 shadow-brand-sm">
+								<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Agendar de novo</p>
+								<p className="mt-1 font-semibold">{ultimo.barbearias.nome}</p>
+								<Button variant="outline" size="sm" className="mt-3 w-full gap-2"
+									onClick={() => navigate(`/barbearia/${ultimo.barbearias?.slug}`)}>
+									<RefreshCw className="h-4 w-4" aria-hidden="true" />
+									Ver horários
 								</Button>
-								<Button
-									variant="outline"
-									className={`w-full ${isMobile ? 'text-sm py-2' : ''}`}
-									onClick={() => navigate("/meus-agendamentos")}
-								>
-									<History className={`${isMobile ? 'w-3 h-3 mr-2' : 'w-4 h-4 mr-2'}`} />
-									Histórico Completo
-								</Button>
-								<Button
-									variant="outline"
-									className={`w-full ${isMobile ? 'text-sm py-2' : ''}`}
-									onClick={() => navigate("/barbearias")}
-								>
-									<MapPin className={`${isMobile ? 'w-3 h-3 mr-2' : 'w-4 h-4 mr-2'}`} />
-									Encontrar Barbearias
-								</Button>
-								<Button
-									variant="ghost"
-									className={`w-full ${isMobile ? 'text-sm py-2' : ''}`}
-									onClick={() => setTourAberto(true)}
-								>
-									<HelpCircle className={`${isMobile ? 'w-3 h-3 mr-2' : 'w-4 h-4 mr-2'}`} />
-									Como funciona
-								</Button>
-							</CardContent>
-						</Card>
+							</section>
+						)}
 					</div>
 				</div>
 			</div>
+
 			<TourCliente aberto={tourAberto} onFechar={() => setTourAberto(false)} />
 			{selectedFeedback && (
 				<FeedbackModal
@@ -759,8 +479,59 @@ const ClientPanel = () => {
 					}}
 				/>
 			)}
-		</div>
+		</ClientLayout>
 	);
 };
+
+/** Bloco com título usado nas seções do painel */
+function Secao({ titulo, icone: Icone, acao, children }: {
+	titulo: string;
+	icone: LucideIcon;
+	acao?: { label: string; onClick: () => void };
+	children: ReactNode;
+}) {
+	return (
+		<section className="rounded-3xl border border-border/60 bg-card p-5 shadow-brand-sm">
+			<div className="mb-4 flex items-center justify-between gap-3">
+				<h2 className="flex items-center gap-2 text-lg font-bold">
+					<Icone className="h-4 w-4 text-primary" aria-hidden="true" />
+					{titulo}
+				</h2>
+				{acao && (
+					<Button variant="link" size="sm" className="h-auto p-0" onClick={acao.onClick}>{acao.label}</Button>
+				)}
+			</div>
+			{children}
+		</section>
+	);
+}
+
+/** Linha compacta de agendamento: data em bloco, título, detalhes e status */
+function LinhaAgendamento({ data, titulo, subtitulo, badge, comHora = false }: {
+	data: string;
+	titulo: string;
+	subtitulo: string;
+	badge: ReactNode;
+	comHora?: boolean;
+}) {
+	const dia = new Date(data);
+	return (
+		<div className="flex items-center gap-3">
+			<div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl bg-muted text-center">
+				<span className="text-[10px] font-medium uppercase leading-none text-muted-foreground">
+					{format(dia, "MMM", { locale: ptBR }).replace(".", "")}
+				</span>
+				<span className="text-base font-bold leading-tight">{format(dia, "dd")}</span>
+			</div>
+			<div className="min-w-0 flex-1">
+				<p className="truncate text-sm font-semibold">{titulo}</p>
+				<p className="truncate text-xs text-muted-foreground">
+					{comHora ? `${format(dia, "HH:mm")} · ${subtitulo}` : subtitulo}
+				</p>
+			</div>
+			<div className="shrink-0">{badge}</div>
+		</div>
+	);
+}
 
 export default ClientPanel;

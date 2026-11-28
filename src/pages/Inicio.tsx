@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarPlus, CheckCircle2, Clock, Loader2, MessageCircle, Share2, TriangleAlert } from "lucide-react";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
+import { ConfiguracaoInicial } from "@/components/onboarding/ConfiguracaoInicial";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -147,6 +148,44 @@ const duracaoTexto = (min: number) => {
 
 /** Tela inicial do painel: o dia (próximo cliente, números, agenda), a pausa e o resumo do mês. */
 export default function Inicio() {
+  const { role, barbeariaId } = useAuth();
+  const verificar = role === "admin" && !!barbeariaId;
+  const publicacao = useQuery({
+    queryKey: ["configuracao-publicacao", barbeariaId],
+    enabled: verificar,
+    refetchOnMount: "always",
+    queryFn: async () => {
+      const [servicos, equipe] = await Promise.all([
+        supabase.from("servicos").select("id").eq("barbearia_id", barbeariaId!)
+          .not("responsavel_id", "is", null).limit(1),
+        supabase.from("funcionarios").select("id").eq("barbearia_id", barbeariaId!).limit(1),
+      ]);
+      if (servicos.error || equipe.error) throw servicos.error ?? equipe.error;
+      return { pronta: Boolean(servicos.data?.length), temProfissional: Boolean(equipe.data?.length) };
+    },
+  });
+
+  if (verificar && !publicacao.data?.pronta) {
+    return (
+      <DashboardLayout>
+        {publicacao.isError ? (
+          <div className="p-6">
+            <p role="alert">Não foi possível verificar a configuração da barbearia.</p>
+            <Button className="mt-3" variant="outline" onClick={() => void publicacao.refetch()}>Tentar novamente</Button>
+          </div>
+        ) : publicacao.data ? (
+          <ConfiguracaoInicial temProfissional={publicacao.data.temProfissional} />
+        ) : (
+          <p role="status" className="p-6 text-muted-foreground">Verificando configuração da barbearia...</p>
+        )}
+      </DashboardLayout>
+    );
+  }
+
+  return <InicioPainel />;
+}
+
+function InicioPainel() {
   const { user, role, profile, barbeariaId } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();

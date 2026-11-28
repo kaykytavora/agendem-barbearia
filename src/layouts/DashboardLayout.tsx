@@ -84,7 +84,7 @@ function DashboardLayoutContent({ children }: DashboardLayoutProps) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Header */}
-        <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border/50 bg-card/95 px-3 backdrop-blur-sm sm:px-6 md:h-16 md:bg-card/30">
+        <header className="glass-surface sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border/50 px-3 sm:px-6 md:h-16">
           <div className="flex items-center gap-4">
             {/* SidebarTrigger - Only show on desktop */}
             <div className="hidden md:block">

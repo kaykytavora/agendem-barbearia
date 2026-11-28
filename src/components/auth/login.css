@@ -1,0 +1,12 @@
+.login-hero {
+  --primary: 152 45% 72%;
+  --accent: 158 38% 24%;
+  --accent-foreground: 144 52% 86%;
+  background-color: #192d27;
+  background-position: 66% center;
+  background-size: cover;
+}
+
+.login-main {
+  background: radial-gradient(ellipse at 50% 30%, hsl(var(--accent) / 0.52), transparent 68%), hsl(var(--background));
+}

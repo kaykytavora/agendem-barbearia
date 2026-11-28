@@ -17,7 +17,7 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         button {
-            background: #6c47ff;
+            background: #356859;
             color: white;
             border: none;
             padding: 12px 24px;
@@ -26,7 +26,7 @@
             margin: 10px 5px;
             font-size: 14px;
         }
-        button:hover { background: #5a38f0; }
+        button:hover { background: #285346; }
         .preview {
             display: flex;
             gap: 20px;
@@ -78,8 +78,8 @@
             return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="bg-${size}" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#6c47ff"/>
-      <stop offset="100%" style="stop-color:#4f46e5"/>
+      <stop offset="0%" style="stop-color:#356859"/>
+      <stop offset="100%" style="stop-color:#192d27"/>
     </linearGradient>
   </defs>
 
@@ -101,7 +101,7 @@
 
   <!-- Small calendar icon -->
   <rect x="${size*0.42}" y="${size*0.2}" width="${size*0.16}" height="${size*0.12}" rx="${size*0.01}" fill="white" opacity="0.8"/>
-  <rect x="${size*0.44}" y="${size*0.22}" width="${size*0.12}" height="${size*0.06}" rx="${size*0.005}" fill="#6c47ff"/>
+  <rect x="${size*0.44}" y="${size*0.22}" width="${size*0.12}" height="${size*0.06}" rx="${size*0.005}" fill="#356859"/>
 </svg>`;
         }
 

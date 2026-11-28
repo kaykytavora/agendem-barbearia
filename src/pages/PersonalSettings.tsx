@@ -188,7 +188,7 @@ export default function PersonalSettings() {
               <div className="relative">
                 <Avatar className="w-16 h-16 sm:w-20 sm:h-20">
                   <AvatarImage src={user?.user_metadata?.avatar_url} />
-                  <AvatarFallback className="bg-gradient-primary text-white text-base sm:text-lg">
+                  <AvatarFallback className="bg-gradient-primary text-primary-foreground text-base sm:text-lg">
                     {userInitials}
                   </AvatarFallback>
                 </Avatar>

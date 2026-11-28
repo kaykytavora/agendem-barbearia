@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,7 @@ interface Service {
   barbearia_id: string;
   categoria_id: string | null;
   categoria_id_2?: string | null;
+  responsavel_id: string | null;
   categoria_principal?: { nome: string } | null;
   categoria_secundaria?: { nome: string } | null;
 }
@@ -61,6 +63,7 @@ interface ServiceFormData {
   duracao_minutos: string;
   categoria_id: string;
   categoria_id_2: string; // "none" quando não selecionada
+  responsavel_id: string;
 }
 
 interface ServicePayload {
@@ -70,6 +73,7 @@ interface ServicePayload {
   duracao_minutos: number;
   categoria_id: string | null;
   categoria_id_2: string | null;
+  responsavel_id: string;
 }
 
 // --- Funções de API ---
@@ -123,11 +127,13 @@ const fetchServices = async (userId: string): Promise<Service[]> => {
 };
 
 export default function Services() {
-  const { user } = useAuth();
+  const { user, barbeariaId } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
 
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(() => params.get("novo") === "1");
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [formData, setFormData] = useState<ServiceFormData>({
     nome: "",
@@ -135,7 +141,8 @@ export default function Services() {
     valor: "",
     duracao_minutos: "",
     categoria_id: "",
-    categoria_id_2: "none"
+    categoria_id_2: "none",
+    responsavel_id: "",
   });
 
   // Função para contar palavras
@@ -156,6 +163,35 @@ export default function Services() {
     queryFn: () => fetchServices(user!.id),
     enabled: !!user
   });
+
+  const { data: profissionais = [], isLoading: carregandoProfissionais, error: erroProfissionais } = useQuery({
+    queryKey: ["profissionais-servico", barbeariaId],
+    enabled: !!barbeariaId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("funcionarios").select("id, nome, is_owner")
+        .eq("barbearia_id", barbeariaId!).order("nome");
+      if (error) throw error;
+      return data;
+    },
+  });
+  const responsavel = formData.responsavel_id || (!editingService && profissionais.length === 1 ? profissionais[0].id : "");
+
+  function atualizarCatalogo() {
+    void queryClient.invalidateQueries({ queryKey: ["services"] });
+    void queryClient.invalidateQueries({ queryKey: ["configuracao-publicacao"] });
+    void queryClient.invalidateQueries({ queryKey: ["barbershops-list"] });
+    void queryClient.invalidateQueries({ queryKey: ["barbershop"] });
+  }
+
+  function fecharFormulario() {
+    setIsDialogOpen(false);
+    resetForm();
+    if (params.has("novo")) {
+      const novosParams = new URLSearchParams(params);
+      novosParams.delete("novo");
+      setParams(novosParams, { replace: true });
+    }
+  }
 
   // --- Mutações ---
   const serviceMutation = useMutation({
@@ -185,10 +221,13 @@ export default function Services() {
       }
     },
     onSuccess: (message) => {
-      queryClient.invalidateQueries({ queryKey: ['services'] });
+      atualizarCatalogo();
       toast({ title: "Sucesso", description: message });
-      setIsDialogOpen(false);
-      resetForm();
+      if (params.get("configuracao") === "1") {
+        navigate("/dashboard", { replace: true });
+      } else {
+        fecharFormulario();
+      }
     },
     onError: (error: Error) => {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
@@ -201,7 +240,7 @@ export default function Services() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['services'] });
+      atualizarCatalogo();
       toast({ title: "Sucesso", description: "Serviço excluído com sucesso" });
     },
     onError: (error: Error) => {
@@ -211,7 +250,8 @@ export default function Services() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.nome || !formData.valor || !formData.duracao_minutos || !formData.categoria_id) {
+    if (!formData.nome || !formData.valor || !formData.duracao_minutos || !formData.categoria_id ||
+        !profissionais.some((pessoa) => pessoa.id === responsavel)) {
         toast({ title: "Campos obrigatórios", description: "Preencha todos os campos obrigatórios.", variant: "destructive"});
         return;
     }
@@ -239,6 +279,7 @@ export default function Services() {
       duracao_minutos: parseInt(formData.duracao_minutos),  
       categoria_id: formData.categoria_id || null,
       categoria_id_2: formData.categoria_id_2 === "none" ? null : (formData.categoria_id_2 || null),
+      responsavel_id: responsavel,
     };
 
     serviceMutation.mutate(serviceData);
@@ -257,13 +298,14 @@ export default function Services() {
       valor: service.valor.toString(),
       duracao_minutos: service.duracao_minutos.toString(),
       categoria_id: service.categoria_id || "",
-      categoria_id_2: service.categoria_id_2 ? service.categoria_id_2 : "none"
+      categoria_id_2: service.categoria_id_2 ? service.categoria_id_2 : "none",
+      responsavel_id: service.responsavel_id ?? "",
     });
     setIsDialogOpen(true);
   };
 
   const resetForm = () => {
-    setFormData({ nome: "", descricao: "", valor: "", duracao_minutos: "", categoria_id: "", categoria_id_2: "none" });
+    setFormData({ nome: "", descricao: "", valor: "", duracao_minutos: "", categoria_id: "", categoria_id_2: "none", responsavel_id: "" });
     setEditingService(null);
   };
   
@@ -293,16 +335,16 @@ export default function Services() {
   return (
     <DashboardLayout>
       <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+        {params.get("configuracao") === "1" && (
+          <Button asChild variant="outline" size="sm"><Link to="/dashboard">Voltar à configuração da barbearia</Link></Button>
+        )}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold">Gerenciar Serviços</h1>
             <p className="text-sm sm:text-base text-muted-foreground">Gerencie os serviços oferecidos pela sua barbearia</p>
           </div>
           
-          <Dialog open={isDialogOpen} onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) resetForm();
-          }}>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => open ? setIsDialogOpen(true) : fecharFormulario()}>
             <DialogTrigger asChild>
               <Button className="w-full sm:w-auto">
                 <Plus className="w-4 h-4 mr-2" />
@@ -319,6 +361,26 @@ export default function Services() {
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="responsavel-servico">Profissional responsável *</Label>
+                  <Select value={responsavel} onValueChange={(id) => setFormData((atual) => ({ ...atual, responsavel_id: id }))}
+                    disabled={carregandoProfissionais || profissionais.length === 0}>
+                    <SelectTrigger id="responsavel-servico">
+                      <SelectValue placeholder={carregandoProfissionais ? "Carregando profissionais..." : "Selecione o responsável"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {profissionais.map((pessoa) => (
+                        <SelectItem key={pessoa.id} value={pessoa.id}>{pessoa.nome}{pessoa.is_owner ? " (dono)" : ""}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {erroProfissionais && <p role="alert" className="text-sm text-destructive">Não foi possível carregar a equipe.</p>}
+                  {!carregandoProfissionais && !erroProfissionais && profissionais.length === 0 && (
+                    <Link to="/dashboard/funcionarios" className="text-sm font-medium text-primary hover:underline">
+                      Cadastre um profissional para continuar
+                    </Link>
+                  )}
+                </div>
                 <div>
                   <Label htmlFor="nome" className="text-sm sm:text-base">Nome do serviço *</Label>
                   <Input
@@ -443,10 +505,10 @@ export default function Services() {
                 </div>
                 
                 <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto text-sm sm:text-base">
+                  <Button type="button" variant="outline" onClick={fecharFormulario} className="w-full sm:w-auto text-sm sm:text-base">
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={serviceMutation.isPending} className="w-full sm:w-auto text-sm sm:text-base">
+                  <Button type="submit" disabled={serviceMutation.isPending || !responsavel} className="w-full sm:w-auto text-sm sm:text-base">
                     {serviceMutation.isPending ? "Salvando..." : (editingService ? "Atualizar" : "Criar")}
                   </Button>
                 </DialogFooter>
@@ -495,6 +557,11 @@ export default function Services() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3 sm:space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  {service.responsavel_id
+                    ? `Responsável: ${profissionais.find((pessoa) => pessoa.id === service.responsavel_id)?.nome ?? "Profissional cadastrado"}`
+                    : "Defina um responsável para oferecer este serviço online."}
+                </p>
                 {service.descricao && (
                   <p className="text-xs sm:text-sm text-muted-foreground">
                     {service.descricao}

@@ -10,9 +10,11 @@
  * 3. Remover os comentários e condições "false &&" nas renderizações do OTP
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -31,12 +33,12 @@ import { usePhoneMask } from "@/hooks/usePhoneMask";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { OTPVerification } from "@/components/OTPVerification";
-import { toStringSafe, onlyDigits, normalizeToE164, formatBRL, shopThemeStyle, whatsAppUrl, enderecoCompleto } from "@/lib/utils";
+import { toStringSafe, onlyDigits, normalizeToE164, formatBRL, whatsAppUrl, enderecoCompleto } from "@/lib/utils";
 import { anonymousBookingSchema } from "@/hooks/useInputValidation";
 import { generatePDFReceipt } from "@/lib/receipt";
 import { useBarbershopDetails } from "@/hooks/useBarbershopDetails";
 import { dataLocalISO, gerarHorarios, horaNoDia, ocupacoesDoDia, pausasDoDia, type Horario } from "@/lib/agenda";
-import { BookingStepper } from "@/components/booking/BookingStepper";
+import { BookingStepper, type StepperStep } from "@/components/booking/BookingStepper";
 import { ServiceList } from "@/components/booking/ServiceList";
 import { DayPicker } from "@/components/booking/DayPicker";
 import { ProfessionalPicker } from "@/components/booking/ProfessionalPicker";
@@ -45,7 +47,8 @@ import { BookingSummaryBar } from "@/components/booking/BookingSummaryBar";
 import { BookingConfirmationCard } from "@/components/booking/BookingConfirmationCard";
 import { ShopHeroCard } from "@/components/barbershop/ShopHeroCard";
 import { ShopInfoAside } from "@/components/barbershop/ShopInfoAside";
-import { ProgramaSelosPublico } from "@/components/barbershop/ProgramaSelosPublico";
+import { FotoLightbox } from "@/components/barbershop/FotoLightbox";
+import { ProgramaSelosPublico, AvisoSelosSemLogin } from "@/components/barbershop/ProgramaSelosPublico";
 import { caminhoAgendamento, createAppointment } from "@/integrations/supabase/api";
 
 
@@ -53,7 +56,7 @@ type Servico = Database['public']['Tables']['servicos']['Row'];
 type Funcionario = Pick<Database['public']['Tables']['funcionarios']['Row'], 'id' | 'nome'>;
 type HorarioFuncionamento = Database['public']['Tables']['horarios_funcionamento']['Row'];
 
-type BookingStep = 'service' | 'datetime' | 'client' | 'otp' | 'confirmation';
+type BookingStep = StepperStep | 'otp' | 'confirmation';
 
 const BarberShopDetails = () => {
   const { slug } = useParams(); // Changed from id to slug
@@ -64,8 +67,19 @@ const BarberShopDetails = () => {
   // Booking flow state
   const isOTPEnabled = false; // Temporarily disabled until SMS API is ready
   const [currentStep, setCurrentStep] = useState<BookingStep>('service');
+  const [fotoAberta, setFotoAberta] = useState<number | null>(null);
+  // Direção da transição entre etapas (avançar entra pela direita, voltar pela esquerda)
+  const stepAnim = useRef<{ step: BookingStep; dir: 'forward' | 'back' }>({ step: 'service', dir: 'forward' });
+  if (stepAnim.current.step !== currentStep) {
+    const ordem: BookingStep[] = ['service', 'professional', 'datetime', 'client', 'otp', 'confirmation'];
+    stepAnim.current = {
+      step: currentStep,
+      dir: ordem.indexOf(currentStep) < ordem.indexOf(stepAnim.current.step) ? 'back' : 'forward',
+    };
+  }
   const [selectedService, setSelectedService] = useState<string | null>(null);
-  const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
+  const [professionalChoice, setProfessionalChoice] = useState<string | null>();
+  const selectedBarber = professionalChoice ?? null;
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [clientData, setClientData] = useState({
@@ -80,7 +94,7 @@ const BarberShopDetails = () => {
   const { value: phoneValue, handleChange, handleBlur } = usePhoneMask(clientData.phone || '');
 
   // Dados da barbearia (React Query): serviços, equipe, horários, agendamentos futuros e avaliações
-  const { data: dados, isLoading: loading, isError: loadError, refetch: refetchBarbershop } = useBarbershopDetails(slug);
+  const { data: dados, dataUpdatedAt, isLoading: loading, isError: loadError, refetch: refetchBarbershop } = useBarbershopDetails(slug);
   const barbershop = dados?.barbershop ?? null;
   const feedbacks = dados?.feedbacks ?? [];
   const ausencias = dados?.ausencias ?? [];
@@ -93,7 +107,8 @@ const BarberShopDetails = () => {
     diasFormatado: ''
   };
   const [submitting, setSubmitting] = useState(false);
-  const [timeSlots, setTimeSlots] = useState<Horario[]>([]);
+  const selectedServiceData: Servico | undefined = barbershop?.servicos.find((s: Servico) => s.id === selectedService);
+  const selectedDuration = selectedServiceData?.duracao_minutos ?? 30;
 
   useEffect(() => {
     if (profile) {
@@ -142,8 +157,8 @@ const BarberShopDetails = () => {
   };
 
   // Gera os horários do dia para o serviço escolhido (e o profissional, se houver)
-  const generateTimeSlots = useCallback(async (date: Date, funcionarioId: string | null = null, duracaoMin = 30) => {
-    if (!barbershop || !date) return [];
+  async function generateTimeSlots(date: Date, signal: AbortSignal): Promise<Horario[]> {
+    if (!barbershop) return [];
 
     const workingHours = barbershop.horarios_funcionamento.find((h: HorarioFuncionamento) => h.dia_semana === date.getDay());
     if (!workingHours || workingHours.fechado || !workingHours.hora_abre || !workingHours.hora_fecha) {
@@ -151,34 +166,50 @@ const BarberShopDetails = () => {
     }
 
     // Profissional de férias/ausente nesse dia não tem horários
-    if (funcionarioId) {
+    if (selectedBarber) {
       const dia = dataLocalISO(date);
-      const { data: ausenciasDoDia } = await supabase
+      const { data: ausenciasDoDia, error } = await supabase
         .from('funcionario_ausencias')
         .select('id')
-        .eq('funcionario_id', funcionarioId)
+        .eq('funcionario_id', selectedBarber)
         .lte('data_inicio', dia)
-        .gte('data_fim', dia);
+        .gte('data_fim', dia)
+        .abortSignal(signal);
+      if (error) throw error;
       if (ausenciasDoDia && ausenciasDoDia.length > 0) return [];
     }
 
     const ocupados = [
-      ...ocupacoesDoDia(barbershop.horarios_ocupados, date, funcionarioId),
-      ...pausasDoDia(barbershop.pausas, date, funcionarioId, barbershop.funcionarios.length),
+      ...ocupacoesDoDia(barbershop.horarios_ocupados, date, selectedBarber),
+      ...pausasDoDia(barbershop.pausas, date, selectedBarber, barbershop.funcionarios.length),
     ];
 
     return gerarHorarios({
       abre: horaNoDia(date, workingHours.hora_abre),
       fecha: horaNoDia(date, workingHours.hora_fecha),
-      duracaoMin,
+      duracaoMin: selectedDuration,
       ocupados,
     });
-  }, [barbershop]);
+  }
+
+  const {
+    data: timeSlots = [],
+    isPending: calculandoHorarios,
+    isError: erroHorarios,
+    refetch: recarregarHorarios,
+  } = useQuery({
+    queryKey: ["horarios-reserva", barbershop?.id, dataUpdatedAt, selectedDate && dataLocalISO(selectedDate), selectedBarber, selectedDuration],
+    queryFn: ({ signal }) => selectedDate ? generateTimeSlots(selectedDate, signal) : [],
+    enabled: Boolean(barbershop && selectedDate),
+  });
+  const horarioDisponivel = !erroHorarios && timeSlots.some(({ time, isAvailable }) => time === selectedTime && isAvailable);
 
   const handleNextStep = () => {
     if (currentStep === 'service' && selectedService) {
+      setCurrentStep('professional');
+    } else if (currentStep === 'professional' && professionalChoice !== undefined) {
       setCurrentStep('datetime');
-    } else if (currentStep === 'datetime' && selectedDate && selectedTime) {
+    } else if (currentStep === 'datetime' && selectedDate && horarioDisponivel) {
       setCurrentStep('client');
     } else if (currentStep === 'client' && clientData.name && clientData.phone) {
       // Validar dados do cliente com Zod antes de prosseguir
@@ -383,9 +414,6 @@ const BarberShopDetails = () => {
       // para garantir que todos os dados (incluindo o novo agendamento) estejam atualizados.
       await refetchBarbershop();
 
-      // Clear selected time to force time slot regeneration
-      setSelectedTime(null);
-
       // Handle account creation if checked (only for anonymous users who want to create account)
       if (!isClientLoggedIn && clientData.createAccount && clientData.email) {
 
@@ -486,19 +514,6 @@ const BarberShopDetails = () => {
     });
   };
 
-  const selectedServiceData: Servico | undefined = barbershop?.servicos.find((s: Servico) => s.id === selectedService);
-  const selectedDuration = selectedServiceData?.duracao_minutos ?? 30;
-
-  // Dia, profissional ou serviço mudou: recalcula os horários e descarta o horário escolhido
-  useEffect(() => {
-    setSelectedTime(null);
-    if (selectedDate) {
-      generateTimeSlots(selectedDate, selectedBarber, selectedDuration).then(setTimeSlots);
-    } else {
-      setTimeSlots([]);
-    }
-  }, [selectedDate, selectedBarber, selectedDuration, generateTimeSlots]);
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-bg flex items-center justify-center">
@@ -537,7 +552,6 @@ const BarberShopDetails = () => {
 
   const availableDates = generateAvailableDates(selectedBarber);
   const galleryImages: string[] = (barbershop.gallery_urls || []).filter(Boolean);
-  const shopTheme = shopThemeStyle(barbershop.cores_personalizadas?.primary);
   const endereco = enderecoCompleto(barbershop);
   const selectedBarberName = barbershop.funcionarios.find((b: Funcionario) => b.id === selectedBarber)?.nome;
   const isStaff = !!profile?.role && profile.role !== 'cliente';
@@ -546,27 +560,30 @@ const BarberShopDetails = () => {
   const summaryTitle = selectedServiceData?.nome ?? 'Escolha um serviço';
   const summarySubtitle = [
     selectedServiceData && formatBRL(selectedServiceData.valor),
+    professionalChoice !== undefined && (selectedBarberName ?? 'Qualquer profissional'),
     selectedDate?.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, ''),
-    selectedTime,
+    currentStep === 'datetime' && !horarioDisponivel ? null : selectedTime,
   ].filter(Boolean).join(' · ');
 
   const summaryAction = {
     service: { label: 'Continuar', disabled: !selectedService },
-    datetime: { label: 'Continuar', disabled: !selectedDate || !selectedTime },
+    professional: { label: 'Continuar', disabled: professionalChoice === undefined },
+    datetime: { label: 'Continuar', disabled: !selectedDate || !horarioDisponivel },
     client: { label: 'Confirmar', disabled: !clientData.name || !clientData.phone },
     otp: { label: 'Continuar', disabled: true },
     confirmation: { label: '', disabled: true },
   }[currentStep];
 
   const goBack = () => {
-    if (currentStep === 'datetime') setCurrentStep('service');
+    if (currentStep === 'professional') setCurrentStep('service');
+    if (currentStep === 'datetime') setCurrentStep('professional');
     if (currentStep === 'client') setCurrentStep('datetime');
   };
 
   const resetBooking = () => {
     setCurrentStep('service');
     setSelectedService(null);
-    setSelectedBarber(null);
+    setProfessionalChoice(undefined);
     setSelectedDate(null);
     setSelectedTime(null);
     setLastCreatedAppointment(null);
@@ -584,7 +601,7 @@ const BarberShopDetails = () => {
   };
 
   return (
-    <div className={`min-h-screen bg-background ${shopTheme ? 'shop-theme' : ''}`} style={shopTheme}>
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
@@ -604,8 +621,6 @@ const BarberShopDetails = () => {
           whatsAppHref={barbershop.telefone ? formatWhatsAppLink(barbershop.telefone, barbershop.nome) : undefined}
         />
 
-        <ProgramaSelosPublico barbeariaId={barbershop.id} servicos={barbershop.servicos} />
-
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
           {/* Agendamento */}
           <section aria-label="Agendar horário" className="min-w-0">
@@ -615,9 +630,10 @@ const BarberShopDetails = () => {
               </div>
             )}
 
+            <div key={currentStep} className={stepAnim.current.dir === 'back' ? 'step-enter-back' : 'step-enter-forward'}>
             {currentStep === 'service' && (
               <div className="space-y-4">
-                <div className="rounded-3xl border bg-card p-4 sm:p-6">
+                <div className="rounded-3xl border border-border/60 bg-card p-4 shadow-brand-md sm:p-6">
                   <h2 className="mb-4 text-xl font-bold">Escolha o serviço</h2>
                   {barbershop.servicos.length === 0 ? (
                     <div className="flex flex-col items-center rounded-2xl border border-dashed border-input px-4 py-10 text-center">
@@ -629,47 +645,78 @@ const BarberShopDetails = () => {
                       </p>
                     </div>
                   ) : (
-                    <ServiceList services={barbershop.servicos} selectedId={selectedService} onSelect={setSelectedService} />
+                    <ServiceList services={barbershop.servicos} selectedId={selectedService} onSelect={(id) => {
+                      if (id !== selectedService) {
+                        setSelectedDate(null);
+                        setSelectedTime(null);
+                      }
+                      setSelectedService(id);
+                    }} />
                   )}
                 </div>
               </div>
             )}
 
+            {currentStep === 'professional' && (
+              <Card variant="glass" className="rounded-3xl border-border/60 shadow-brand-md">
+                <CardContent className="space-y-4 p-3.5 sm:p-6">
+                  <h2 className="text-xl font-bold">Escolha o profissional</h2>
+                  <ProfessionalPicker professionals={barbershop.funcionarios} selectedId={professionalChoice} onSelect={(id) => {
+                    if (id !== professionalChoice) {
+                      setSelectedDate(null);
+                      setSelectedTime(null);
+                    }
+                    setProfessionalChoice(id);
+                  }} />
+                </CardContent>
+              </Card>
+            )}
+
             {currentStep === 'datetime' && (
-              <div className="space-y-4">
-                <div className="rounded-3xl border bg-card p-4 sm:p-6">
-                  <h2 className="mb-3 text-xl font-bold">Escolha o dia</h2>
-                  <DayPicker dates={availableDates} selected={selectedDate} onSelect={setSelectedDate} />
-                </div>
+              <Card variant="glass" className="rounded-3xl border-border/60 shadow-brand-md">
+                <CardContent className="space-y-5 divide-y divide-border/70 p-3.5 sm:p-6">
+                  <section aria-labelledby="reserva-dia">
+                    <h2 id="reserva-dia" className="mb-3 text-xl font-bold">Escolha o dia</h2>
+                    <DayPicker dates={availableDates} selected={selectedDate} onSelect={(dia) => {
+                      if (!selectedDate || dataLocalISO(dia) !== dataLocalISO(selectedDate)) setSelectedTime(null);
+                      setSelectedDate(dia);
+                    }} />
+                  </section>
 
-                {barbershop.funcionarios.length > 0 && (
-                  <div className="rounded-3xl border bg-card p-4 sm:p-6">
-                    <h2 className="mb-3 text-xl font-bold">Profissional</h2>
-                    <ProfessionalPicker
-                      professionals={barbershop.funcionarios}
-                      selectedId={selectedBarber}
-                      onSelect={setSelectedBarber}
-                    />
-                  </div>
-                )}
-
-                {selectedDate && (
-                  <div className="rounded-3xl border bg-card p-4 sm:p-6">
-                    <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-                      <h2 className="text-xl font-bold">Horários</h2>
-                      <span className="text-sm text-muted-foreground">
-                        {selectedBarberName ? `com ${selectedBarberName}` : 'com qualquer profissional'}
-                      </span>
+                  <section aria-labelledby="reserva-horarios" aria-busy={Boolean(selectedDate && calculandoHorarios)} className="pt-5">
+                    <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                      <h2 id="reserva-horarios" className="text-base font-semibold">Horários</h2>
+                      {selectedDate && (
+                        <span className="text-sm capitalize text-muted-foreground">
+                          {selectedDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'short' })}
+                        </span>
+                      )}
                     </div>
-                    <TimeSlotGrid slots={timeSlots} selected={selectedTime} onSelect={setSelectedTime} />
-                  </div>
-                )}
-              </div>
+                    {!selectedDate ? (
+                      <p className="rounded-2xl border border-dashed border-input p-4 text-center text-sm text-muted-foreground">
+                        Escolha um dia para ver os horários.
+                      </p>
+                    ) : erroHorarios ? (
+                      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border p-3">
+                        <p role="alert" className="text-sm text-destructive">Não foi possível consultar os horários.</p>
+                        <Button type="button" size="sm" variant="outline" onClick={() => void recarregarHorarios()}>Tentar novamente</Button>
+                      </div>
+                    ) : calculandoHorarios ? (
+                      <p role="status" className="flex items-center justify-center gap-2 rounded-2xl border border-border p-4 text-sm text-muted-foreground">
+                        <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" /> Consultando horários...
+                      </p>
+                    ) : (
+                      <TimeSlotGrid slots={timeSlots} selected={selectedTime} onSelect={setSelectedTime} />
+                    )}
+                  </section>
+                </CardContent>
+              </Card>
             )}
 
             {currentStep === 'client' && (
-              <div className="space-y-4 rounded-3xl border bg-card p-4 sm:p-6">
+              <div className="space-y-4 rounded-3xl border border-border/60 bg-card p-4 shadow-brand-md sm:p-6">
                 <h2 className="text-xl font-bold">Seus dados</h2>
+                {!isClientLoggedIn && <AvisoSelosSemLogin barbeariaId={barbershop.id} />}
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="name">Nome completo</Label>
@@ -782,10 +829,12 @@ const BarberShopDetails = () => {
                       }
                 }
                 onReset={resetBooking}
+                onHome={() => navigate(isClientLoggedIn ? (isStaff ? '/dashboard' : '/client-panel') : '/')}
               />
             )}
+            </div>
 
-            {(currentStep === 'service' || currentStep === 'datetime' || currentStep === 'client') && barbershop.servicos.length > 0 && (
+            {(currentStep === 'service' || currentStep === 'professional' || currentStep === 'datetime' || currentStep === 'client') && barbershop.servicos.length > 0 && (
               <BookingSummaryBar
                 title={summaryTitle}
                 subtitle={summarySubtitle || undefined}
@@ -796,8 +845,12 @@ const BarberShopDetails = () => {
                 onBack={currentStep === 'service' ? undefined : goBack}
               />
             )}
+            {currentStep !== 'confirmation' && (
+              <ProgramaSelosPublico className="mt-6" barbeariaId={barbershop.id} servicos={barbershop.servicos} semLogin={!isClientLoggedIn} />
+            )}
           </section>
 
+          <FotoLightbox fotos={galleryImages} nome={barbershop.nome} index={fotoAberta} onIndexChange={setFotoAberta} />
           {/* Informações da barbearia */}
           <ShopInfoAside
             nome={barbershop.nome}
@@ -805,6 +858,7 @@ const BarberShopDetails = () => {
             instagramHref={barbershop.instagram ? formatInstagramLink(barbershop.instagram) : undefined}
             facebookHref={barbershop.facebook}
             fotos={galleryImages}
+            onOpenFoto={setFotoAberta}
             horarios={barbershop.horarios_funcionamento}
             feedbacks={feedbacks}
           />

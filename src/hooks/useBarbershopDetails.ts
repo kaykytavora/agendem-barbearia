@@ -21,11 +21,13 @@ export interface BarbershopStats {
 async function carregarBarbearia(slug: string) {
   const { data: barbearia, error } = await supabase
     .from("barbearias")
-    .select("*, servicos (*), funcionarios (id, nome)")
+    .select("*, servicos!inner (*), funcionarios (id, nome)")
     .eq("slug", slug)
+    .is("desativada_em", null)
+    .not("servicos.responsavel_id", "is", null)
     .maybeSingle();
   if (error) throw error;
-  if (!barbearia) return null;
+  if (!barbearia || barbearia.desativada_em) return null;
 
   // Horários já reservados de hoje até o fim da janela de agendamento (30 dias).
   // Vem de uma função porque visitantes e clientes não podem ler os agendamentos de outras pessoas.

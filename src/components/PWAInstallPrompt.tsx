@@ -15,6 +15,8 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export const PWAInstallPrompt = () => {
+  const naEntrada = useMatch('/');
+  const noLoginCliente = useMatch('/client-login');
   const noPainel = useMatch('/dashboard/*');
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -90,7 +92,7 @@ export const PWAInstallPrompt = () => {
   };
 
   // Não mostrar se já está instalado, é standalone, ou não deve ser visível
-  if (isInstalled || isStandalone || !isVisible) {
+  if (naEntrada || noLoginCliente || isInstalled || isStandalone || !isVisible) {
     return null;
   }
 
@@ -120,8 +122,8 @@ export const PWAInstallPrompt = () => {
         <CardContent className="pt-0">
           <p className="text-sm text-muted-foreground mb-4">
             {isIOS 
-              ? 'Adicione o Fiden Agency à sua tela inicial para acesso rápido e experiência completa de app.'
-              : 'Instale o Fiden Agency no seu dispositivo para acesso rápido e offline.'
+              ? 'Adicione o Agendem à tela de início para abrir a agenda com um toque.'
+              : 'Instale o Agendem no seu dispositivo para acessar o app mais rápido.'
             }
           </p>
           

@@ -18,7 +18,7 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Edit3, Loader2, Save, Trash2, User, X } from "lucide-react";
+import { Edit3, Loader2, Save, Trash2, User, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +27,8 @@ import { Input } from "@/components/ui/input";
 import { usePhoneMask } from "@/hooks/usePhoneMask";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { ClientLayout } from "@/layouts/ClientLayout";
+import { CampoCep, metadadosRegiao, type RegiaoCep } from "@/components/CampoCep";
 
 const ClientSettings = () => {
 	const navigate = useNavigate();
@@ -44,6 +46,11 @@ const ClientSettings = () => {
 		handleBlur: handlePhoneBlur,
 		setValue: setPhoneValue,
 	} = usePhoneMask(profile?.phone || "");
+
+	// Região (CEP) salva nos metadados da conta
+	const [regiao, setRegiao] = useState<RegiaoCep | null>(null);
+	const [cepVazio, setCepVazio] = useState(true);
+	const regiaoSalva = [user?.user_metadata?.bairro, user?.user_metadata?.cidade].filter(Boolean).join(" - ");
 
 	// Preferências de Notificação
 	const [prefs, setPrefs] = useState({
@@ -115,13 +122,25 @@ const ClientSettings = () => {
 			return;
 		}
 
+		if (!cepVazio && !regiao) {
+			toast({
+				title: "CEP inválido",
+				description: "Confira o CEP ou deixe o campo em branco.",
+				variant: "destructive",
+			});
+			return;
+		}
+
 		try {
 			const { error } = await supabase
 				.from("profiles")
 				.update({ name: name, phone: cleanPhone })
 				.eq("user_id", profile.user_id);
-			
+
 			if (error) throw error;
+
+			const { error: erroRegiao } = await supabase.auth.updateUser({ data: metadadosRegiao(regiao) });
+			if (erroRegiao) throw erroRegiao;
 
 			toast({
 				title: "Sucesso!",
@@ -196,28 +215,12 @@ const ClientSettings = () => {
 	};
 
 	return (
-		<div className="min-h-screen bg-gradient-bg">
-			{/* Header */}
-			<div className="border-b border-border/50 bg-card/30 backdrop-blur-sm">
-				<div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-					<div className="flex items-center gap-4">
-						<Button 
-							variant="ghost" 
-							size="icon"
-							onClick={() => navigate('/client-panel')}
-						>
-							<ArrowLeft className="w-4 h-4" />
-						</Button>
-						<div>
-							<h1 className="text-2xl font-bold">Configurações da Conta</h1>
-							<p className="text-muted-foreground">Gerencie suas informações e preferências.</p>
-						</div>
-					</div>
-				</div>
-			</div>
-
-			{/* Content */}
-			<div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+		<ClientLayout>
+			<div className="page-enter mx-auto max-w-4xl px-4 py-6 lg:px-8 lg:py-10">
+				<header className="mb-6">
+					<h1 className="text-2xl font-bold sm:text-3xl">Configurações da conta</h1>
+					<p className="text-muted-foreground">Gerencie suas informações e preferências.</p>
+				</header>
 				<div className="space-y-8">
 					{/* Seção de Perfil */}
 					<Card className="border-border/50 bg-card/50 backdrop-blur-sm">
@@ -272,6 +275,21 @@ const ClientSettings = () => {
 										<p className="text-muted-foreground">{profile?.phone || 'Não informado'}</p>
 									)}
 								</div>
+							</div>
+							<div>
+								{isEditing ? (
+									<CampoCep
+										valorInicial={user?.user_metadata?.cep ?? ""}
+										onRegiaoChange={setRegiao}
+										onVazioChange={setCepVazio}
+									/>
+								) : (
+									<>
+										<p className="font-medium">Região</p>
+										<p className="text-muted-foreground">{regiaoSalva || "Não informada"}</p>
+										<p className="text-xs text-muted-foreground">Usada para mostrar primeiro as barbearias perto de você.</p>
+									</>
+								)}
 							</div>
 							<div className="flex justify-end gap-2 mt-4">
 								{isEditing ? (
@@ -428,7 +446,7 @@ const ClientSettings = () => {
 					</Card>
 				</div>
 			</div>
-		</div>
+		</ClientLayout>
 	);
 };
 

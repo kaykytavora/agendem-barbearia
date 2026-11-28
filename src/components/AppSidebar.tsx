@@ -1,3 +1,4 @@
+import { AgendemIcon } from "@/components/AgendemIcon";
 import { NavLink } from "react-router-dom";
 import { ChevronUp, LogOut } from "lucide-react";
 import {
@@ -105,14 +106,14 @@ export function AppSidebar() {
       <SidebarHeader className={collapsed ? "border-b border-border/50 p-2" : "border-b border-border/50 p-4"}>
         {!collapsed ? (
           <div className="flex items-center gap-3">
-            <img src="/icon-agendem.svg" alt="agendem" className="w-8 h-8" />
+            <AgendemIcon className="w-8 h-8 text-primary" />
             <div>
               <h2 className="font-semibold text-sm text-gray-900 dark:text-white">agendem</h2>
               <p className="text-xs text-muted-foreground">Sistema de Gestão</p>
             </div>
           </div>
         ) : (
-          <img src="/icon-agendem.svg" alt="agendem" className="w-8 h-8 mx-auto" />
+          <AgendemIcon className="w-8 h-8 mx-auto text-primary" />
         )}
       </SidebarHeader>
 
@@ -202,7 +203,7 @@ export function AppSidebar() {
                 <Button variant="ghost" aria-label="Menu da conta" className="h-auto w-full min-w-0 justify-between p-2 hover:bg-muted/50">
                   <div className="flex min-w-0 items-center gap-3">
                     <Avatar className="w-8 h-8">
-                      <AvatarFallback className="bg-gradient-primary text-white text-xs">
+                      <AvatarFallback className="bg-gradient-primary text-primary-foreground text-xs">
                         {authLoading ? '...' : userInitials}
                       </AvatarFallback>
                     </Avatar>
@@ -241,7 +242,7 @@ export function AppSidebar() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="w-8 h-8" aria-label="Menu da conta">
                   <Avatar className="w-8 h-8">
-                    <AvatarFallback className="bg-gradient-primary text-white text-xs">
+                    <AvatarFallback className="bg-gradient-primary text-primary-foreground text-xs">
                       {authLoading ? '...' : userInitials}
                     </AvatarFallback>
                   </Avatar>

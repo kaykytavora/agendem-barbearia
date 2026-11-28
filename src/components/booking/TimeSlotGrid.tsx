@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import type { Horario } from "@/lib/agenda";
 
 interface TimeSlotGridProps {
@@ -33,31 +34,31 @@ export function TimeSlotGrid({ slots, selected, onSelect }: TimeSlotGridProps) {
   }).filter((g) => g.itens.length > 0);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 rounded-2xl border border-border/80 bg-gradient-to-br from-card/85 via-card/60 to-accent/50 p-3 shadow-sm backdrop-blur-md sm:p-4">
       {grupos.map((grupo) => (
         <div key={grupo.label} className="space-y-2">
           <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{grupo.label}</p>
-          <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(3.5rem,1fr))] gap-2">
             {grupo.itens.map(({ time, isAvailable }) => {
-              const isSelected = selected === time;
+              const isSelected = isAvailable && selected === time;
               return (
-                <button
+                <Button
                   key={time}
                   type="button"
+                  variant={isSelected ? "default" : isAvailable ? "glass" : "outline"}
                   disabled={!isAvailable}
                   aria-pressed={isSelected}
                   aria-label={isAvailable ? time : `${time}, ocupado`}
                   onClick={() => onSelect(time)}
                   className={cn(
-                    "h-12 rounded-2xl border text-[15px] font-medium transition-colors",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    isSelected && "border-primary bg-primary font-bold text-primary-foreground",
-                    !isSelected && isAvailable && "bg-card hover:border-input",
-                    !isAvailable && "border-dashed border-input bg-transparent text-muted-foreground/70 line-through",
+                    "h-11 w-full rounded-xl border px-1 text-sm font-medium tabular-nums",
+                    isSelected && "border-primary font-bold shadow-sm",
+                    !isSelected && isAvailable && "border-border bg-card/70 shadow-sm hover:border-primary/40",
+                    !isAvailable && "border-dashed border-input bg-transparent text-muted-foreground line-through disabled:opacity-75",
                   )}
                 >
                   {time}
-                </button>
+                </Button>
               );
             })}
           </div>

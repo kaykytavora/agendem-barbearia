@@ -1,3 +1,4 @@
+import { AgendemIcon } from "@/components/AgendemIcon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +15,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { usePhoneMask } from "@/hooks/usePhoneMask";
+import { CampoCep, metadadosRegiao, type RegiaoCep } from "@/components/CampoCep";
 import { supabase } from "@/integrations/supabase/client";
 import { usePasswordStrength } from "@/hooks/usePasswordStrength";
 import { PasswordStrengthBar } from "@/components/ui/password-strength";
@@ -22,6 +24,8 @@ export default function Register() {
 	const [showPassword, setShowPassword] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
 	const { value: phoneValue, handleChange: handlePhoneChange } = usePhoneMask();
+	// Região do cliente (via CEP), usada para mostrar primeiro as barbearias próximas
+	const [regiao, setRegiao] = useState<RegiaoCep | null>(null);
 	const [formData, setFormData] = useState({
 		name: "",
 		email: "",
@@ -121,6 +125,7 @@ export default function Register() {
 					name: formData.name,
 					phone: unmaskedPhone || null, // Usar unmaskedPhone consistentemente
 					role: "cliente", // Default role for new users
+					...(regiao && metadadosRegiao(regiao)),
 				},
 			});
 
@@ -177,7 +182,7 @@ export default function Register() {
 
 			<main className="z-10 flex flex-col items-center text-center w-full max-w-md">
 				<div className="flex items-center justify-center gap-2 mb-6">
-					<img src="/icon-agendem.svg" alt="agendem" className="w-12 h-12" />
+					<AgendemIcon className="w-12 h-12 text-primary" />
 					<span className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
 						agendem Cliente
 					</span>
@@ -244,6 +249,8 @@ export default function Register() {
 								/>
 							</div>
 						</div>
+
+						<CampoCep onRegiaoChange={setRegiao} />
 
 							<div className="space-y-4">
 								<div className="space-y-2">

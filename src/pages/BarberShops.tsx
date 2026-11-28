@@ -41,7 +41,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { resumirHorarios } from "@/lib/horarios";
 import { useBarbershopsList } from "@/hooks/useBarbershopsList";
-import { chaveCidade, cidadeDaLocalizacao, correspondeBusca } from "@/lib/localizacao-barbearias";
+import { chaveCidade, cidadeDaLocalizacao, correspondeBusca, proximidadeRegiao, rotuloLocal, type RegiaoCliente } from "@/lib/localizacao-barbearias";
 
 const BarberShops = () => {
   const navigate = useNavigate();
@@ -75,6 +75,11 @@ const BarberShops = () => {
 		navigate("/");
 	};
 
+  // Região informada no cadastro (CEP → bairro/cidade); usada para mostrar primeiro as barbearias da região
+  const regiaoCliente: RegiaoCliente | null = user?.user_metadata?.cidade
+    ? { bairro: user.user_metadata.bairro, cidade: user.user_metadata.cidade }
+    : null;
+
   const filteredShops = allBarberShops
     .filter(shop => {
       const matchesSearch = correspondeBusca(shop, searchTerm);
@@ -88,6 +93,8 @@ const BarberShops = () => {
       return matchesSearch && matchesCity && matchesCategories;
     })
     .sort((a, b) => {
+      const regiao = proximidadeRegiao(a, regiaoCliente) - proximidadeRegiao(b, regiaoCliente);
+      if (regiao !== 0) return regiao;
       const ordem = a.nome.localeCompare(b.nome, "pt-BR");
       return sortBy === "name_desc" ? -ordem : ordem;
     });
@@ -105,13 +112,15 @@ const BarberShops = () => {
   return (
     <div className="min-h-screen bg-gradient-bg">
       {/* Header */}
-      <div className="border-b border-border/50 bg-card/30 backdrop-blur-sm">
+      <div className="glass-surface border-b border-border/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-4 min-w-0">
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label="Voltar"
+                className="shrink-0"
                 onClick={() => {
                   if (!user) {
                     navigate("/");
@@ -125,8 +134,8 @@ const BarberShops = () => {
                 <ArrowLeft className="w-4 h-4" />
               </Button>
               <div className="min-w-0">
-                <h1 className="text-lg sm:text-2xl font-bold truncate">
-                  Barbearias<span className="hidden sm:inline"> Disponíveis</span>
+                <h1 className="text-base font-bold leading-tight sm:text-2xl">
+                  Barbearias Disponíveis
                 </h1>
                 <p className="hidden sm:block text-muted-foreground">
                   Encontre a barbearia ideal para você
@@ -196,7 +205,13 @@ const BarberShops = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="page-enter max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {regiaoCliente && !locationFilter && (
+          <p className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+            <MapPin className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+            <span>Mostrando primeiro as barbearias perto de <strong className="text-foreground">{rotuloLocal(regiaoCliente.bairro ?? null, regiaoCliente.cidade ?? null)}</strong></span>
+          </p>
+        )}
         {locationFilter && (
           <Alert className="mb-4">
             {buscandoLocalizacao ? <Loader2 className="h-4 w-4 animate-spin" /> : cidadeDetectada ? (
@@ -319,7 +334,7 @@ const BarberShops = () => {
         {/* Layout para Desktop/Tablet */}
         <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filteredShops.map((shop) => (
-            <Card key={shop.id} className="border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-brand-md transition-all duration-300 overflow-hidden">
+            <Card key={shop.id} variant="glass" className="depth-hover overflow-hidden border-border/70">
               <div className="aspect-square bg-muted/50 relative">
                 <img 
                   src={shop.logo_url || '/placeholder.svg'} 
@@ -339,7 +354,7 @@ const BarberShops = () => {
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <MapPin className="w-4 h-4" />
-                    {shop.cidade || "Cidade não informada"}
+                    {rotuloLocal(shop.bairro, shop.cidade) || "Cidade não informada"}
                   </div>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -387,7 +402,8 @@ const BarberShops = () => {
           {filteredShops.map((shop) => (
             <Card 
               key={shop.id} 
-              className="border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-brand-md transition-all duration-300 overflow-hidden cursor-pointer"
+              variant="glass"
+              className="depth-hover cursor-pointer overflow-hidden border-border/70"
               onClick={() => {
                 if (!shop.slug) {
                   console.error('[NAVIGATION ERROR] Slug is null/undefined for:', shop.nome);
@@ -413,7 +429,7 @@ const BarberShops = () => {
                       <h3 className="font-semibold text-base truncate">{shop.nome}</h3>
                       <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
                         <MapPin className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate">{shop.cidade || "Cidade não informada"}</span>
+                        <span className="truncate">{rotuloLocal(shop.bairro, shop.cidade) || "Cidade não informada"}</span>
                       </div>
                     </div>
                     <Badge variant="secondary" className="bg-background/90 text-foreground ml-2 flex-shrink-0">

@@ -25,6 +25,19 @@ export function cidadesDisponiveis(cidades: string[]) {
     .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 }
 
+/** "Jardim Sapopemba - São Paulo"; cai para o que existir */
+export function rotuloLocal(bairro: string | null, cidade: string | null) {
+  return [bairro?.trim(), cidade?.trim()].filter(Boolean).join(" - ");
+}
+
+export interface RegiaoCliente { bairro?: string | null; cidade?: string | null }
+
+/** 0 = mesmo bairro e cidade, 1 = mesma cidade, 2 = outra região */
+export function proximidadeRegiao(barbearia: { bairro: string | null; cidade: string }, regiao: RegiaoCliente | null) {
+  if (!regiao?.cidade || chaveCidade(barbearia.cidade) !== chaveCidade(regiao.cidade)) return 2;
+  return regiao.bairro && normalizarBusca(barbearia.bairro ?? "") === normalizarBusca(regiao.bairro) ? 0 : 1;
+}
+
 export function cidadeDaLocalizacao(cidade: string | null, opcoes: ReturnType<typeof cidadesDisponiveis>) {
   return cidadeUtil(cidade) ? opcoes.find((opcao) => opcao.chave === chaveCidade(cidade)) : undefined;
 }
