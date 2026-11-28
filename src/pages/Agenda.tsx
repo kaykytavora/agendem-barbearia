@@ -15,6 +15,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
+import type { AgendaSlot as AgendaSlotType } from '@/hooks/useAgendaData';
 
 export default function Agenda() {
   const { user } = useAuth();
@@ -80,6 +82,18 @@ export default function Agenda() {
     weekStart,
   });
 
+  const navigate = useNavigate();
+  // Ocupado: abre os detalhes do agendamento. Livre: abre "Novo agendamento" já com dia, hora e profissional.
+  const abrirHorario = (slot: AgendaSlotType) => {
+    if (slot.status === 'ocupado' && slot.agendamento) {
+      navigate(`/dashboard/agendamentos?highlight=${slot.agendamento.id}&date=${encodeURIComponent(slot.data.toISOString())}`);
+    } else if (slot.status === 'disponivel') {
+      navigate('/dashboard/new-appointment', {
+        state: { data: format(slot.data, 'yyyy-MM-dd'), hora: slot.hora, funcionarioId: selectedFuncionarioId },
+      });
+    }
+  };
+
   const handlePreviousWeek = () => setWeekStart(prev => subWeeks(prev, 1));
   const handleNextWeek = () => setWeekStart(prev => addWeeks(prev, 1));
   const handleToday = () => {
@@ -125,8 +139,8 @@ export default function Agenda() {
         </div>
 
         {/* Main Card - Optimized for mobile */}
-        <Card className="overflow-hidden border-0 sm:border shadow-sm">
-          <CardContent className="p-0 sm:p-4">
+        <Card className="overflow-hidden border-0 shadow-brand-sm sm:rounded-3xl sm:border sm:border-border/60">
+          <CardContent className="p-0 sm:p-5">
             {/* Header with navigation */}
             <div className="p-3 sm:p-0 sm:mb-4 border-b sm:border-0">
               <AgendaHeader
@@ -204,6 +218,7 @@ export default function Agenda() {
                   days={agenda}
                   viewMode={effectiveViewMode}
                   selectedDayIndex={selectedDayIndex}
+                  onSlotClick={abrirHorario}
                 />
               )}
             </div>

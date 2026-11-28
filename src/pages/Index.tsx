@@ -1,3 +1,4 @@
+import { AgendemIcon } from "@/components/AgendemIcon";
 import { NavBar } from "@/components/NavBar";
 import { Hero } from "@/components/Hero";
 
@@ -12,7 +13,7 @@ const Index = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 mb-4">
-              <img src="/icon-agendem.svg" alt="agendem" className="w-8 h-8" />
+              <AgendemIcon className="w-8 h-8 text-primary" />
               <span className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
                 agendem
               </span>

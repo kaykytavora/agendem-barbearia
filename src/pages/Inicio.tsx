@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarPlus, CheckCircle2, Clock, Loader2, MessageCircle, Share2, TriangleAlert } from "lucide-react";
+import { CalendarCheck, CalendarPlus, CheckCircle2, Clock, Loader2, MessageCircle, Share2, TriangleAlert } from "lucide-react";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
+import { ConfiguracaoInicial } from "@/components/onboarding/ConfiguracaoInicial";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -147,6 +148,44 @@ const duracaoTexto = (min: number) => {
 
 /** Tela inicial do painel: o dia (próximo cliente, números, agenda), a pausa e o resumo do mês. */
 export default function Inicio() {
+  const { role, barbeariaId } = useAuth();
+  const verificar = role === "admin" && !!barbeariaId;
+  const publicacao = useQuery({
+    queryKey: ["configuracao-publicacao", barbeariaId],
+    enabled: verificar,
+    refetchOnMount: "always",
+    queryFn: async () => {
+      const [servicos, equipe] = await Promise.all([
+        supabase.from("servicos").select("id").eq("barbearia_id", barbeariaId!)
+          .not("responsavel_id", "is", null).limit(1),
+        supabase.from("funcionarios").select("id").eq("barbearia_id", barbeariaId!).limit(1),
+      ]);
+      if (servicos.error || equipe.error) throw servicos.error ?? equipe.error;
+      return { pronta: Boolean(servicos.data?.length), temProfissional: Boolean(equipe.data?.length) };
+    },
+  });
+
+  if (verificar && !publicacao.data?.pronta) {
+    return (
+      <DashboardLayout>
+        {publicacao.isError ? (
+          <div className="p-6">
+            <p role="alert">Não foi possível verificar a configuração da barbearia.</p>
+            <Button className="mt-3" variant="outline" onClick={() => void publicacao.refetch()}>Tentar novamente</Button>
+          </div>
+        ) : publicacao.data ? (
+          <ConfiguracaoInicial temProfissional={publicacao.data.temProfissional} />
+        ) : (
+          <p role="status" className="p-6 text-muted-foreground">Verificando configuração da barbearia...</p>
+        )}
+      </DashboardLayout>
+    );
+  }
+
+  return <InicioPainel />;
+}
+
+function InicioPainel() {
   const { user, role, profile, barbeariaId } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -250,11 +289,6 @@ export default function Inicio() {
             </h1>
           </div>
           <div className="flex flex-wrap gap-2">
-            {pedidosCancelamento === 0 && (
-              <Button asChild size="lg" variant="outline">
-                <Link to={linkPedidosCancelamento}>Pedidos de cancelamento</Link>
-              </Button>
-            )}
             <PausaControl />
             <Button asChild size="lg">
               <Link to="/dashboard/new-appointment">
@@ -300,7 +334,7 @@ export default function Inicio() {
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
               {/* Próximo cliente */}
               {dia.proximo ? (
-                <section aria-labelledby="proximo-titulo" className="flex flex-col gap-3 rounded-3xl bg-primary p-6 text-primary-foreground">
+                <section aria-labelledby="proximo-titulo" className="flex flex-col gap-3 rounded-3xl bg-primary p-6 text-primary-foreground shadow-brand-lg">
                   <h2 id="proximo-titulo" className="font-sans text-sm font-semibold text-primary-foreground/85">{proximoRotulo}</h2>
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                     <span className="font-display text-5xl font-extrabold leading-none">{formatarHora(dia.proximo.inicio)}</span>
@@ -356,13 +390,17 @@ export default function Inicio() {
 
               {/* Números do dia */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-3xl border bg-card p-5">
-                  <p className="text-sm text-muted-foreground">Agendamentos</p>
+                <div className="rounded-3xl border border-border/60 bg-card p-5 shadow-brand-sm">
+                  <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <CalendarCheck className="h-4 w-4 text-primary" aria-hidden="true" /> Agendamentos
+                  </p>
                   <p className="font-display text-3xl font-extrabold">{dia.atendimentos.length}</p>
                   <p className="text-sm text-muted-foreground">{dia.finalizados.length} atendidos</p>
                 </div>
-                <div className="rounded-3xl border bg-card p-5">
-                  <p className="text-sm text-muted-foreground">Tempo livre</p>
+                <div className="rounded-3xl border border-border/60 bg-card p-5 shadow-brand-sm">
+                  <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4 text-primary" aria-hidden="true" /> Tempo livre
+                  </p>
                   <p className="font-display text-3xl font-extrabold">{dia.aberto && !dia.encerrado ? duracaoTexto(dia.minutosLivres) : "—"}</p>
                   <p className="text-sm text-muted-foreground">
                     {!dia.aberto
@@ -386,7 +424,7 @@ export default function Inicio() {
 
             {/* Este mês */}
             {data?.mes && (
-              <section aria-labelledby="mes-titulo" className="flex flex-wrap items-center gap-x-8 gap-y-3 rounded-3xl border bg-card px-5 py-4">
+              <section aria-labelledby="mes-titulo" className="flex flex-wrap items-center gap-x-8 gap-y-3 rounded-3xl border border-border/60 bg-card px-5 py-4 shadow-brand-sm">
                 <h2 id="mes-titulo" className="w-full text-sm font-semibold text-muted-foreground sm:w-auto">
                   {somenteDoFuncionario ? "Seu mês" : "Este mês"}
                 </h2>
@@ -410,7 +448,7 @@ export default function Inicio() {
             )}
 
             {/* Agenda do dia */}
-            <section aria-labelledby="agenda-titulo" className="rounded-3xl border bg-card p-4 sm:p-6">
+            <section aria-labelledby="agenda-titulo" className="rounded-3xl border border-border/60 bg-card p-4 shadow-brand-sm sm:p-6">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <h2 id="agenda-titulo" className="text-xl font-bold">Agenda do dia</h2>
                 <Link to="/dashboard/agenda" className="text-sm font-semibold text-primary hover:underline">Ver agenda completa</Link>
@@ -442,17 +480,23 @@ export default function Inicio() {
                         key={a.id}
                         className={cn("flex items-center gap-4 rounded-2xl px-3 py-3", atual && "bg-accent", feito && "text-muted-foreground")}
                       >
-                        <span className={cn("w-12 shrink-0 font-semibold", atual && "text-accent-foreground")}>{formatarHora(a.inicio)}</span>
-                        <span className={cn("min-w-0 flex-1 truncate", atual && "font-semibold", feito && "line-through")}>
-                          {a.cliente_nome}{a.servicos ? ` · ${a.servicos.nome}` : ""}
+                        <span className={cn("w-12 shrink-0 font-semibold tabular-nums", atual && "text-accent-foreground")}>{formatarHora(a.inicio)}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className={cn("block truncate font-medium", feito && "line-through")}>{a.cliente_nome}</span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {[a.servicos?.nome, a.funcionarios?.nome].filter(Boolean).join(" · ")}
+                          </span>
                         </span>
-                        <span className="hidden shrink-0 text-sm text-muted-foreground sm:inline">{a.funcionarios?.nome}</span>
                         {feito ? (
-                          <span className="shrink-0 text-sm">Atendido</span>
+                          <span className="shrink-0 rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">Atendido</span>
+                        ) : a.fim <= agora && !a.cancelamento_solicitado_por ? (
+                          <Link to={`/dashboard/agendamentos?highlight=${a.id}&date=${encodeURIComponent(a.data_hora)}`} className="shrink-0 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-700 hover:underline dark:text-amber-400">
+                            Registrar desfecho
+                          </Link>
                         ) : a.status === "pendente" ? (
-                          <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold">Pendente</span>
+                          <span className="shrink-0 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400">Pendente</span>
                         ) : (
-                          <Clock className="h-4 w-4 shrink-0 text-muted-foreground" aria-label="Confirmado" />
+                          <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">Confirmado</span>
                         )}
                       </li>
                     );

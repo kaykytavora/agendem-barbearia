@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,8 +23,14 @@ import {
   Shield,
   Users,
   Info,
-  UserPlus
+  UserPlus,
+  Mail,
+  ChevronRight,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DetalheProfissional, iniciais } from "@/components/equipe/DetalheProfissional";
+import { formatBRL } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +42,7 @@ interface Employee {
   nome: string;
   email?: string | null;
   especialidade: string | null;
+  foto_url?: string | null;
   nivel_permissao: 'funcionario' | 'gerente' | 'dono';
   user_id: string;
   barbearia_id: string;
@@ -46,10 +53,12 @@ const SENHA_MINIMA = 8;
 export default function Team() {
   const { user, role, refreshProfile } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [detalhe, setDetalhe] = useState<Employee | null>(null);
   const [formData, setFormData] = useState({
     nome: "",
     email: "",
@@ -57,6 +66,14 @@ export default function Team() {
     nivel_permissao: "funcionario" as 'funcionario' | 'gerente' | 'dono',
     senha: ""
   });
+
+  function atualizarPublicacao() {
+    void queryClient.invalidateQueries({ queryKey: ["configuracao-publicacao"] });
+    void queryClient.invalidateQueries({ queryKey: ["profissionais-servico"] });
+    void queryClient.invalidateQueries({ queryKey: ["services"] });
+    void queryClient.invalidateQueries({ queryKey: ["barbershops-list"] });
+    void queryClient.invalidateQueries({ queryKey: ["barbershop"] });
+  }
 
   // Helper functions (moved up to be accessible)
   const dbToUiPermission = (dbPermission: 'funcionario' | 'gerente' | 'dono'): 'funcionario' | 'gerente' | 'dono' => {
@@ -274,6 +291,7 @@ export default function Team() {
           description: `Passe o e-mail e a senha inicial para ${formData.nome}. No primeiro acesso será pedida uma senha nova.`,
         });
 
+        atualizarPublicacao();
         setIsDialogOpen(false);
         resetForm();
         loadEmployees();
@@ -347,6 +365,7 @@ export default function Team() {
         });
       }
 
+      atualizarPublicacao();
       loadEmployees();
     } catch (error: unknown) {
       console.error('Erro ao remover funcionário:', error);
@@ -426,6 +445,36 @@ export default function Team() {
       });
     }
   };
+
+  // Atendimentos finalizados e faturamento do mês, por profissional (para os cards)
+  const idsEquipe = employees.map((e) => e.id);
+  const resumoMes = useQuery({
+    queryKey: ["equipe-resumo-mes", idsEquipe],
+    enabled: idsEquipe.length > 0,
+    queryFn: async () => {
+      const hoje = new Date();
+      const inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+      const fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1);
+      const { data, error } = await supabase
+        .from("agendamentos")
+        .select("funcionario_id, servicos(valor)")
+        .in("funcionario_id", idsEquipe)
+        .eq("status", "finalizado")
+        .gte("data_hora", inicio.toISOString())
+        .lt("data_hora", fim.toISOString());
+      if (error) throw error;
+      const mapa = new Map<string, { atendimentos: number; faturamento: number }>();
+      for (const linha of (data ?? []) as unknown as { funcionario_id: string | null; servicos: { valor: number } | null }[]) {
+        if (!linha.funcionario_id) continue;
+        const atual = mapa.get(linha.funcionario_id) ?? { atendimentos: 0, faturamento: 0 };
+        mapa.set(linha.funcionario_id, {
+          atendimentos: atual.atendimentos + 1,
+          faturamento: atual.faturamento + Number(linha.servicos?.valor ?? 0),
+        });
+      }
+      return mapa;
+    },
+  });
 
   if (loading) {
     return (
@@ -582,54 +631,64 @@ export default function Team() {
             <Users className="w-5 h-5 text-primary" />
             Equipe Ativa ({employees.length})
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {employees.map((employee) => (
-              <Card key={employee.id} className="border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-brand-md transition-all duration-300">
-                <CardHeader className="flex-row items-start justify-between space-y-0 p-4 sm:p-6">
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-full flex items-center justify-center overflow-hidden">
-                      <User className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-base sm:text-lg">{employee.nome}</CardTitle>
-                      {getPermissionBadge(employee.nivel_permissao)}
-                    </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {employees.map((employee) => {
+              const doMes = resumoMes.data?.get(employee.id);
+              return (
+              <article
+                key={employee.id}
+                className="group relative flex flex-col rounded-3xl border border-border/60 bg-card p-5 shadow-brand-sm transition-shadow hover:shadow-brand-md"
+              >
+                <button
+                  type="button"
+                  onClick={() => setDetalhe(employee)}
+                  className="absolute inset-0 rounded-3xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label={`Ver detalhes de ${employee.nome}`}
+                />
+                <div className="flex items-start gap-3">
+                  <Avatar className="h-14 w-14 border-2 border-background shadow-brand-sm">
+                    <AvatarImage src={employee.foto_url ?? undefined} alt="" className="object-cover" />
+                    <AvatarFallback className="bg-primary/10 font-semibold text-primary">{iniciais(employee.nome)}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate text-base font-semibold">{employee.nome}</h3>
+                    <div className="mt-1">{getPermissionBadge(employee.nivel_permissao)}</div>
                   </div>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 sm:h-8 sm:w-8"
-                      onClick={() => handleEdit(employee)}
-                    >
-                      <Edit className="w-3 h-3" />
+                  <div className="relative z-10 flex gap-1">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Editar ${employee.nome}`}
+                      onClick={() => handleEdit(employee)}>
+                      <Edit className="h-3.5 w-3.5" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 sm:h-8 sm:w-8 text-destructive hover:text-destructive"
-                      onClick={() => handleDelete(employee)}
-                    >
-                      <Trash2 className="w-3 h-3" />
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
+                      aria-label={`Remover ${employee.nome}`} onClick={() => handleDelete(employee)}>
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
-                </CardHeader>
-                <CardContent className="p-4 sm:p-6 pt-0">
-                  <div className="space-y-1 sm:space-y-2">
-                    {employee.email && (
-                      <p className="text-xs sm:text-sm text-muted-foreground">
-                        📧 {employee.email}
-                      </p>
-                    )}
-                    {employee.especialidade && (
-                      <p className="text-xs sm:text-sm text-muted-foreground">
-                        🎯 {employee.especialidade}
-                      </p>
-                    )}
+                </div>
+
+                {employee.email && (
+                  <p className="mt-3 flex items-center gap-1.5 truncate text-sm text-muted-foreground">
+                    <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    <span className="truncate">{employee.email}</span>
+                  </p>
+                )}
+
+                <div className="mt-4 grid grid-cols-2 gap-2 border-t border-border/60 pt-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Atendimentos no mês</p>
+                    <p className="font-display text-lg font-bold">{doMes?.atendimentos ?? 0}</p>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
+                  <div>
+                    <p className="text-xs text-muted-foreground">Faturamento no mês</p>
+                    <p className="font-display text-lg font-bold">{formatBRL(doMes?.faturamento ?? 0)}</p>
+                  </div>
+                </div>
+                <p className="mt-3 flex items-center gap-1 text-xs font-medium text-primary">
+                  Ver desempenho e pagamento <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                </p>
+              </article>
+              );
+            })}
 
             {employees.length === 0 && (
               <div className="col-span-full text-center py-8 sm:py-12 px-4">
@@ -647,6 +706,12 @@ export default function Team() {
           </div>
         </div>
       </div>
+      <DetalheProfissional
+        profissional={detalhe}
+        podeEditar={role === "admin"}
+        onFechar={() => setDetalhe(null)}
+        onFotoAtualizada={() => { void loadEmployees(); }}
+      />
     </DashboardLayout>
   );
 }

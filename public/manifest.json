@@ -4,8 +4,8 @@
   "description": "Encontre e agende serviços nas melhores barbearias da sua região",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#010105",
-  "theme_color": "#6c47ff",
+  "background_color": "#192D27",
+  "theme_color": "#192D27",
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "pt-BR",
@@ -77,13 +77,13 @@
       "name": "Agendar Serviço",
       "short_name": "Agendar",
       "description": "Agendar um novo serviço de barbearia",
-      "url": "/barbershops"
+      "url": "/barbearias"
     },
     {
       "name": "Meus Agendamentos",
       "short_name": "Agendamentos",
       "description": "Ver meus agendamentos",
-      "url": "/my-appointments"
+      "url": "/meus-agendamentos"
     }
   ]
 }

@@ -7,7 +7,7 @@ export type AcompanhamentoAgendamento = Pick<Agendamento,
   "cancelamento_solicitado_por" | "cancelamento_confirmado_em"
 >;
 export type AcaoAgendamento = "confirmar" | "pedir_cancelamento" | "aprovar_cancelamento" |
-  "recusar_cancelamento" | "retirar_cancelamento" | "finalizar";
+  "recusar_cancelamento" | "retirar_cancelamento" | "finalizar" | "nao_compareceu";
 
 /**
  * Gera um token seguro de 64 bytes para autoatendimento
@@ -76,6 +76,12 @@ export const createAppointment = async (
 
   if (error) {
     console.error('Erro ao criar agendamento:', error);
+    if (error.message.includes('BARBEARIA_DESATIVADA')) {
+      throw new Error('Esta barbearia está com os agendamentos online pausados.');
+    }
+    if (error.message.includes('SERVICO_INDISPONIVEL')) {
+      throw new Error('Este serviço não está mais disponível para reservas online.');
+    }
     if (error.message.includes('HORARIO_OCUPADO')) {
       throw new Error('Esse horário já está reservado para este profissional. Escolha outro.');
     }

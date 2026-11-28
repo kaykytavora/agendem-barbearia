@@ -1,138 +1,149 @@
-@tailwind base;
+﻿@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/*
- * Identidade visual "Clara": índigo da logo (#4E42FF) sobre fundo claro.
- * O modo escuro usa a paleta da direção "Noturna" com o mesmo índigo.
- * Valores em HSL sem hsl() para o Tailwind aplicar opacidade (bg-primary/10).
- */
-
 @layer base {
   :root {
-    --background: 240 38% 97%;        /* #F6F6FB */
-    --foreground: 252 19% 10%;        /* #17151F */
+    /* Verde-petróleo, branco quente e cinza mineral. Cores em HSL para suportar opacidade no Tailwind. */
+    --background: 105 16.67% 95.29%; /* #F2F5F1 */
+    --foreground: 162 29% 14%;
+    --card: 105 20% 98%;
+    --card-foreground: var(--foreground);
+    --popover: var(--card);
+    --popover-foreground: var(--foreground);
 
-    --card: 0 0% 100%;
-    --card-foreground: 252 19% 10%;
+    --primary: 162.35 32.48% 30.78%; /* #356859 */
+    --primary-foreground: var(--background);
+    --primary-muted: 141 25% 94%;
+    --secondary: 145 16% 93%;
+    --secondary-foreground: var(--foreground);
+    --muted: var(--secondary);
+    --muted-foreground: 164 10% 34%;
+    --accent: 136 19% 88%; /* #DCE7DF */
+    --accent-foreground: var(--foreground);
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 252 19% 10%;
-
-    --primary: 244 100% 63%;          /* #4E42FF, cor da logo */
-    --primary-foreground: 0 0% 100%;
-    --primary-muted: 243 100% 96%;    /* #EEEDFF */
-
-    --secondary: 247 33% 95%;         /* #EEEDF6 */
-    --secondary-foreground: 252 19% 10%;
-
-    --muted: 247 33% 95%;
-    --muted-foreground: 248 11% 40%;  /* #5D5A70 */
-
-    --accent: 243 100% 96%;           /* fundo de hover/seleção em índigo claro */
-    --accent-foreground: 244 68% 50%; /* #3328D6 */
-
-    --destructive: 2 72% 50%;
+    --destructive: 0 70% 40%;
     --destructive-foreground: 0 0% 100%;
-
-    --success: 152 66% 30%;           /* #1A7F50 */
+    --success: 152 66% 30%;
     --success-foreground: 0 0% 100%;
 
-    --border: 249 25% 90%;            /* #E1DFEC */
-    --input: 249 21% 82%;             /* #C9C6DA */
-    --ring: 244 100% 63%;
-
+    --border: 138 11% 86%;
+    --input: 147 10% 58%;
+    --ring: var(--primary);
     --radius: 1rem;
 
     --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
     --font-display: "Bricolage Grotesque", "Figtree", ui-sans-serif, system-ui, sans-serif;
 
-    /* Mantidos por compatibilidade com classes existentes: agora são cores sólidas */
     --gradient-primary: linear-gradient(hsl(var(--primary)), hsl(var(--primary)));
     --gradient-secondary: linear-gradient(hsl(var(--secondary)), hsl(var(--secondary)));
     --gradient-bg: linear-gradient(hsl(var(--background)), hsl(var(--background)));
 
-    --shadow-sm: 0 1px 2px hsl(252 30% 20% / 0.06);
-    --shadow-md: 0 4px 12px -2px hsl(252 30% 20% / 0.08);
-    --shadow-lg: 0 12px 32px -8px hsl(252 30% 20% / 0.14);
+    --shadow-sm: 0 1px 2px hsl(162 29% 14% / 0.06);
+    --shadow-md: 0 4px 12px -2px hsl(162 29% 14% / 0.08);
+    --shadow-lg: 0 12px 32px -8px hsl(162 29% 14% / 0.14);
     --shadow-glow: 0 6px 20px -6px hsl(var(--primary) / 0.45);
 
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-fast: all 0.15s ease-out;
 
-    --sidebar-background: 240 38% 97%;
-    --sidebar-foreground: 248 14% 27%;
-    --sidebar-primary: 244 100% 63%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 243 100% 96%;
-    --sidebar-accent-foreground: 244 68% 50%;
-    --sidebar-border: 249 25% 90%;
-    --sidebar-ring: 244 100% 63%;
+    --sidebar-background: 145 19% 96%;
+    --sidebar-foreground: var(--foreground);
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: var(--accent);
+    --sidebar-accent-foreground: var(--accent-foreground);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--ring);
   }
 
   .dark {
-    --background: 249 21% 6%;         /* #0E0D14 */
-    --foreground: 249 31% 95%;        /* #F1F0F7 */
+    --background: 240 6% 10%; /* #18181B */
+    --foreground: 136 19% 88%;
+    --card: 162 17% 13%;
+    --primary: 152 39% 70%;
+    --primary-foreground: 162 29% 14%;
+    --primary-muted: 162 23% 18%;
+    --secondary: 159 13% 19%;
+    --muted-foreground: 140 12% 72%;
+    --accent: 162 29% 21%;
 
-    --card: 247 17% 10%;              /* #17161F */
-    --card-foreground: 249 31% 95%;
+    --destructive: 0 77% 74%;
+    --destructive-foreground: 0 50% 12%;
+    --success: 147 40% 66%;
+    --success-foreground: 150 28% 12%;
 
-    --popover: 247 17% 10%;
-    --popover-foreground: 249 31% 95%;
-
-    --primary: 244 100% 67%;          /* #6157FF, um pouco mais claro para contraste no escuro */
-    --primary-foreground: 0 0% 100%;
-    --primary-muted: 245 38% 18%;
-
-    --secondary: 249 18% 14%;         /* #201E2B */
-    --secondary-foreground: 249 31% 95%;
-
-    --muted: 249 18% 14%;
-    --muted-foreground: 248 13% 66%;  /* #A09DB3 */
-
-    --accent: 245 38% 18%;
-    --accent-foreground: 244 100% 84%; /* #B3ADFF */
-
-    --destructive: 4 72% 58%;
-    --destructive-foreground: 0 0% 100%;
-
-    --success: 147 40% 59%;
-    --success-foreground: 249 21% 6%;
-
-    --border: 250 17% 20%;            /* #2E2B3D */
-    --input: 250 17% 27%;             /* #3E3A52 */
-    --ring: 244 100% 67%;
+    --border: 162 14% 26%;
+    --input: 152 12% 46%;
 
     --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.3);
     --shadow-md: 0 4px 12px -2px hsl(0 0% 0% / 0.4);
     --shadow-lg: 0 12px 32px -8px hsl(0 0% 0% / 0.5);
 
-    --sidebar-background: 247 17% 10%;
-    --sidebar-foreground: 249 18% 83%;
-    --sidebar-primary: 244 100% 67%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 245 38% 18%;
-    --sidebar-accent-foreground: 249 31% 95%;
-    --sidebar-border: 250 17% 20%;
-    --sidebar-ring: 244 100% 67%;
+    --sidebar-background: var(--card);
   }
 }
 
-/*
- * Cor própria da barbearia: a página define --shop-h/--shop-s/--shop-l e todos os
- * componentes (bg-primary, ring, accent) passam a usar essa cor.
- */
-.shop-theme {
-  --primary: var(--shop-h) var(--shop-s) var(--shop-l);
-  --primary-foreground: var(--shop-fg, 0 0% 100%);
-  --ring: var(--shop-h) var(--shop-s) var(--shop-l);
-  --accent: var(--shop-h) var(--shop-s) 96%;
-  --accent-foreground: var(--shop-h) var(--shop-s) 35%;
+.agendem-icon {
+  mask: url("/icon-agendem.svg") center / contain no-repeat;
 }
 
-.dark .shop-theme {
-  --accent: var(--shop-h) 30% 18%;
-  --accent-foreground: var(--shop-h) 90% 82%;
+@layer components {
+  .glass-surface {
+    background-color: hsl(var(--card) / 0.96);
+    background-image: linear-gradient(145deg, hsl(var(--primary) / 0.05), transparent 52%);
+    box-shadow: inset 0 1px 0 hsl(var(--foreground) / 0.05), var(--shadow-sm);
+  }
+
+  @supports (backdrop-filter: blur(1px)) {
+    .glass-surface {
+      background-color: hsl(var(--card) / 0.72);
+      backdrop-filter: blur(14px);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .page-enter {
+    animation: page-enter 260ms cubic-bezier(0.23, 1, 0.32, 1) backwards;
+  }
+
+  .depth-hover {
+    transition: transform 180ms ease-out, box-shadow 180ms ease-out, background-color 180ms ease-out, border-color 180ms ease-out;
+  }
+
+  .depth-hover:active {
+    transform: translateY(1px);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .depth-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+}
+
+.step-enter-forward { animation: step-enter-forward 320ms cubic-bezier(0.23, 1, 0.32, 1) backwards; }
+.step-enter-back { animation: step-enter-back 320ms cubic-bezier(0.23, 1, 0.32, 1) backwards; }
+
+@keyframes step-enter-forward {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes step-enter-back {
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-enter-forward, .step-enter-back { animation: none; }
+}
+
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @layer base {
@@ -150,7 +161,7 @@
     @apply bg-background text-foreground;
   }
 }
- 
+
 @keyframes pulse-bg {
   0%, 100% {
     background-color: hsl(var(--card));
@@ -162,4 +173,48 @@
 
 .animate-pulse-bg {
   animation: pulse-bg 2s ease-in-out;
+}
+
+/* Brilho que atravessa o destaque do menu ao trocar de item (PillDeslizante) */
+.pill-brilho::before {
+  content: "";
+  position: absolute;
+  inset: -100% 0;
+  background: linear-gradient(180deg, transparent 40%, hsl(0 0% 100% / 0.35) 50%, transparent 60%);
+  animation: pill-brilho-desce 900ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+.pill-brilho[data-sentido="sobe"]::before { animation-name: pill-brilho-sobe; }
+@keyframes pill-brilho-desce {
+  from { transform: translateY(-50%); }
+  to { transform: translateY(50%); }
+}
+@keyframes pill-brilho-sobe {
+  from { transform: translateY(50%); }
+  to { transform: translateY(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pill-brilho::before { animation: none; display: none; }
+}
+
+/* Painel de páginas do dock (celular): ícones entram em cascata */
+.dock-item-entra {
+  animation: dock-item-entra 360ms cubic-bezier(0.34, 1.4, 0.64, 1) backwards;
+  animation-delay: var(--atraso, 0ms);
+}
+@keyframes dock-item-entra {
+  from { opacity: 0; transform: translateY(10px) scale(0.85); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dock-item-entra { animation: none; }
+}
+
+/* iPhone/Safari dá zoom automático ao focar um campo com fonte menor que 16px.
+   No celular, todo campo de digitação fica com pelo menos 16px (sem travar o zoom da página). */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  textarea,
+  select {
+    font-size: max(16px, 1em) !important;
+  }
 }

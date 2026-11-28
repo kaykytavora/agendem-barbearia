@@ -29,6 +29,7 @@ export function dashboardNavigation(isAdmin: boolean) {
   return {
     sections: dashboardSectionLinks.filter((link) => isAdmin || !link.adminOnly),
     quick: dashboardQuickLinks.filter((link) => isAdmin || !link.adminOnly),
-    account: isAdmin ? [personalSettingsLink, subscriptionLink] : [personalSettingsLink],
+    // Assinatura oculta por enquanto (a rota continua existindo)
+    account: [personalSettingsLink],
   };
 }

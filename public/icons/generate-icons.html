@@ -27,7 +27,7 @@
             margin: 20px 0;
         }
         button {
-            background: #6c47ff;
+            background: #356859;
             color: white;
             border: none;
             padding: 10px 20px;
@@ -36,7 +36,7 @@
             margin: 5px;
         }
         button:hover {
-            background: #5a38f0;
+            background: #285346;
         }
         .icon-preview {
             display: flex;
@@ -66,8 +66,8 @@
         function drawIcon(ctx, size) {
             // Background gradient
             const gradient = ctx.createLinearGradient(0, 0, size, size);
-            gradient.addColorStop(0, '#6c47ff');
-            gradient.addColorStop(1, '#4f46e5');
+            gradient.addColorStop(0, '#356859');
+            gradient.addColorStop(1, '#192d27');
 
             // Draw background circle with safe zone
             ctx.fillStyle = gradient;
@@ -109,7 +109,7 @@
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(calX, calY, calSize * 2, calSize * 1.5);
 
-            ctx.fillStyle = '#6c47ff';
+            ctx.fillStyle = '#356859';
             ctx.fillRect(calX + calSize/4, calY + calSize/3, calSize * 1.5, calSize);
         }
 

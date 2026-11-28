@@ -1,3 +1,4 @@
+import { AgendemIcon } from "@/components/AgendemIcon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -178,7 +179,7 @@ export default function RegisterBarbershop() {
 						</Link>
 
 						<div className="flex items-center justify-center gap-2 mb-6">
-							<img src="/icon-agendem.svg" alt="agendem" className="w-12 h-12" />
+							<AgendemIcon className="w-12 h-12 text-primary" />
 							<span className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
 								agendem
 							</span>
@@ -362,7 +363,7 @@ export default function RegisterBarbershop() {
 			{/* Right Side - Visual */}
 			<div className="hidden lg:flex flex-1 bg-gradient-bg items-center justify-center p-8">
 				<div className="max-w-md text-center space-y-6">
-					<img src="/icon-agendem.svg" alt="agendem" className="w-20 h-20 mx-auto mb-8" />
+					<AgendemIcon className="w-20 h-20 mx-auto mb-8 text-primary" />
 
 					<h2 className="text-3xl font-bold">
 						Transforme sua barbearia com

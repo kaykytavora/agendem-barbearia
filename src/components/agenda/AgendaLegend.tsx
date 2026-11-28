@@ -1,37 +1,24 @@
-interface LegendItem {
-  color: string;
-  label: string;
-  icon: string;
-}
+import { Coffee, Plane, Plus } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-const legendItems: LegendItem[] = [
-  { color: 'bg-emerald-500/30 border-emerald-500', label: 'Disp.', icon: '✓' },
-  { color: 'bg-red-500/30 border-red-500', label: 'Ocup.', icon: '●' },
-  { color: 'bg-amber-500/30 border-amber-500', label: 'Pausa', icon: 'P' },
-  { color: 'bg-orange-500/30 border-orange-500', label: 'Férias', icon: '✕' },
-  { color: 'bg-muted border-muted-foreground/30', label: 'Fech.', icon: '—' },
+const itens = [
+  { rotulo: 'Livre', classe: 'border border-dashed border-primary/40 bg-primary/[0.03] dark:border-primary/50', icone: <Plus className="h-3 w-3 text-primary" /> },
+  { rotulo: 'Confirmado', classe: 'border border-primary bg-primary' },
+  { rotulo: 'Aguardando', classe: 'border border-amber-500/40 bg-amber-500/15' },
+  { rotulo: 'Atendido', classe: 'border border-border bg-muted' },
+  { rotulo: 'Pausa', classe: 'border border-amber-500/30 bg-amber-500/10', icone: <Coffee className="h-3 w-3 text-amber-700 dark:text-amber-400" /> },
+  { rotulo: 'Ausente', classe: 'border border-orange-500/30 bg-orange-500/10', icone: <Plane className="h-3 w-3 text-orange-700 dark:text-orange-400" /> },
 ];
 
 export function AgendaLegend() {
   return (
-    <div className="flex items-center justify-center gap-3 sm:gap-4 py-2 px-2 bg-muted/20 rounded-lg">
-      {legendItems.map((item) => (
-        <div key={item.label} className="flex items-center gap-1.5">
-          <div className={cn(
-            'w-5 h-5 rounded border flex items-center justify-center text-[10px] font-medium',
-            item.color
-          )}>
-            {item.icon}
-          </div>
-          <span className="text-[11px] text-muted-foreground font-medium">
-            {item.label}
-          </span>
-        </div>
+    <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 py-2">
+      {itens.map((item) => (
+        <span key={item.rotulo} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span aria-hidden="true" className={cn('flex h-4 w-6 items-center justify-center rounded-md', item.classe)}>{item.icone}</span>
+          {item.rotulo}
+        </span>
       ))}
     </div>
   );
-}
-
-function cn(...classes: (string | undefined | false)[]) {
-  return classes.filter(Boolean).join(' ');
 }

@@ -155,7 +155,7 @@ export function StripeCheckout() {
             >
               {plan.recommended && (
                 <>
-                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-primary text-white border-0 shadow-lg">
+                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-primary text-primary-foreground border-0 shadow-lg">
                     <Sparkles className="w-3 h-3 mr-1" />
                     Mais Popular
                   </Badge>
@@ -197,7 +197,7 @@ export function StripeCheckout() {
                   disabled={loading === plan.priceId}
                   className={`w-full h-12 font-medium transition-all duration-300 group-hover:shadow-xl ${
                     plan.recommended
-                      ? 'bg-primary hover:bg-primary/90 text-white border-0'
+                      ? 'bg-primary hover:bg-primary/90 text-primary-foreground border-0'
                       : 'border-2 hover:border-primary hover:bg-primary/5'
                   }`}
                   variant={plan.recommended ? "default" : "outline"}

@@ -10,12 +10,14 @@ interface ShopInfoAsideProps {
   instagramHref?: string;
   facebookHref?: string | null;
   fotos: string[];
+  /** Abre a foto no visualizador ampliado */
+  onOpenFoto?: (index: number) => void;
   horarios: HorarioDia[];
   feedbacks: FeedbackWithProfile[];
 }
 
 /** Coluna lateral da página da barbearia: sobre, horários, fotos e avaliações. */
-export function ShopInfoAside({ nome, descricao, instagramHref, facebookHref, fotos, horarios, feedbacks }: ShopInfoAsideProps) {
+export function ShopInfoAside({ nome, descricao, instagramHref, facebookHref, fotos, onOpenFoto, horarios, feedbacks }: ShopInfoAsideProps) {
   const semana = horariosDaSemana(horarios);
   return (
     <aside className="space-y-4">
@@ -63,7 +65,10 @@ export function ShopInfoAside({ nome, descricao, instagramHref, facebookHref, fo
           <h2 className="mb-3 text-lg font-bold">Fotos</h2>
           <div className="grid grid-cols-2 gap-2">
             {fotos.slice(0, 4).map((url, index) => (
-              <LazyImage key={url} src={url} alt={`Foto ${index + 1} da ${nome}`} className="aspect-square w-full rounded-2xl object-cover" />
+              <button key={url} type="button" onClick={() => onOpenFoto?.(index)} aria-label={`Ampliar foto ${index + 1} da ${nome}`}
+                className="group overflow-hidden rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <LazyImage src={url} alt="" className="aspect-square w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              </button>
             ))}
           </div>
         </div>

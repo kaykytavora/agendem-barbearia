@@ -22,6 +22,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { usePhoneMask } from "@/hooks/usePhoneMask";
 import { supabase } from "@/integrations/supabase/client";
+import { AtivarMfa } from "@/components/auth/AtivarMfa";
 
 export default function PersonalSettings() {
   const { user, profile, refreshProfile } = useAuth();
@@ -188,7 +189,7 @@ export default function PersonalSettings() {
               <div className="relative">
                 <Avatar className="w-16 h-16 sm:w-20 sm:h-20">
                   <AvatarImage src={user?.user_metadata?.avatar_url} />
-                  <AvatarFallback className="bg-gradient-primary text-white text-base sm:text-lg">
+                  <AvatarFallback className="bg-gradient-primary text-primary-foreground text-base sm:text-lg">
                     {userInitials}
                   </AvatarFallback>
                 </Avatar>
@@ -258,6 +259,8 @@ export default function PersonalSettings() {
             </Button>
           </CardContent>
         </Card>
+
+        <AtivarMfa />
 
         {/* Security */}
         <Card>

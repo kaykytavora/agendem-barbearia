@@ -156,7 +156,7 @@ export async function agendarPeloChat(barbeariaId: string, rascunho: RascunhoAge
     return {
       criado: true,
       linkCliente: { id: agendamento.id, caminho: caminhoAgendamento(agendamento.id, agendamento.booking_token) },
-      texto: `Horário reservado. Aguardando confirmação do cliente.\n${contato.nome} · ${servico.nome}\n${dataBR} às ${hora} com ${profissional.nome}.`,
+      texto: `Horário confirmado.\n${contato.nome} · ${servico.nome}\n${dataBR} às ${hora} com ${profissional.nome}.`,
     };
   } catch (erro) {
     if (erro instanceof Error && erro.message.startsWith("Esse horário já está reservado")) {

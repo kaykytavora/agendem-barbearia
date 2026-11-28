@@ -1,0 +1,39 @@
+.mfa-caixa {
+  transition:
+    transform 420ms cubic-bezier(0.65, 0, 0.35, 1),
+    opacity 300ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+/* Anel pontilhado: gira com aceleração e freio, como um "giro de mola" */
+.mfa-anel {
+  animation: mfa-girar 800ms cubic-bezier(0.5, 0, 0.2, 1) infinite;
+}
+@keyframes mfa-girar {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(450deg); }
+}
+
+.mfa-sucesso {
+  animation: mfa-pop 380ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes mfa-pop {
+  from { transform: scale(0.3); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.mfa-tremer {
+  animation: mfa-tremor 420ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+@keyframes mfa-tremor {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(4px); }
+  30%, 50%, 70% { transform: translateX(-7px); }
+  40%, 60% { transform: translateX(7px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mfa-caixa { transition: none; }
+  .mfa-anel, .mfa-sucesso, .mfa-tremer { animation: none; }
+}

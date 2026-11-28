@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type ReactNode } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, User, Plus, Sparkles } from "lucide-react";
+import { Calendar, CalendarCheck, CheckCircle2, Loader2, Scissors, Sparkles, User, type LucideIcon } from "lucide-react";
+import { TimeSlotGrid } from "@/components/booking/TimeSlotGrid";
+import { formatBRL } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -47,7 +48,7 @@ export default function NewAppointment() {
   const [comando, setComando] = useState(typeof state?.comando === "string" ? state.comando : "");
   const [interpretando, setInterpretando] = useState(false);
   const [avisoIA, setAvisoIA] = useState("");
-  const [horaPedida, setHoraPedida] = useState("");
+  const [horaPedida, setHoraPedida] = useState(typeof state?.hora === "string" ? state.hora : "");
   const [profissionalPendente, setProfissionalPendente] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -55,8 +56,8 @@ export default function NewAppointment() {
     cliente_telefone: "",
     cliente_email: "",
     servico_id: "",
-    funcionario_id: "",
-    data: "",
+    funcionario_id: typeof state?.funcionarioId === "string" ? state.funcionarioId : "",
+    data: typeof state?.data === "string" ? state.data : "",
     hora: ""
   });
 
@@ -293,7 +294,7 @@ export default function NewAppointment() {
 
       toast({
         title: "Sucesso!",
-        description: "Horário reservado. Aguardando confirmação do cliente."
+        description: "Horário confirmado."
       });
 
       // Limpar formulário
@@ -345,87 +346,58 @@ export default function NewAppointment() {
     );
   }
 
+  const profissionalEscolhido = employees.length === 1
+    ? employees[0]
+    : employees.find((e) => e.id === formData.funcionario_id);
+
   return (
     <DashboardLayout>
-      <div className="p-6 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Novo Agendamento</h1>
-          <p className="text-muted-foreground">Agende um horário para um cliente</p>
-        </div>
-        {linkCliente && <LinkClienteAgendamento key={linkCliente.id} id={linkCliente.id} linkInicial={linkCliente.caminho} />}
+      <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
+        <header>
+          <h1 className="text-2xl font-bold sm:text-3xl">Novo agendamento</h1>
+          <p className="text-muted-foreground">Marque um horário para um cliente. Ele já fica confirmado.</p>
+        </header>
 
-        <Card className="max-w-2xl border-primary/25">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              Agendar com IA
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={interpretarPedido} className="space-y-3">
-              <Label htmlFor="comando-agendamento">Descreva o agendamento</Label>
-              <Textarea
-                id="comando-agendamento"
-                value={comando}
-                onChange={(e) => setComando(e.target.value)}
-                placeholder="Agende um corte de cabelo amanhã às 13:00 para Kayky com Daniel."
-                maxLength={500}
-                autoFocus={searchParams.get("assistente") === "1"}
-                disabled={interpretando || isSubmitting}
-              />
-              <Button type="submit" variant="secondary" disabled={!comando.trim() || interpretando || isSubmitting}>
-                {interpretando ? "Interpretando pedido..." : "Preencher formulário"}
-              </Button>
-              {avisoIA && <p className="text-sm text-muted-foreground" role="status">{avisoIA}</p>}
-            </form>
-          </CardContent>
-        </Card>
+        {linkCliente && (
+          <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-primary/5 p-4">
+            <p className="flex items-center gap-2 text-sm font-medium">
+              <CheckCircle2 className="h-4 w-4 text-primary" aria-hidden="true" />
+              Agendamento criado. Envie o link para o cliente acompanhar.
+            </p>
+            <LinkClienteAgendamento key={linkCliente.id} id={linkCliente.id} linkInicial={linkCliente.caminho} />
+          </section>
+        )}
 
-        <Card className="max-w-2xl border-border/50 bg-card/50 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Plus className="w-5 h-5" />
-              Dados do Agendamento
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Dados do Cliente */}
-              <div className="space-y-4">
-                <Label className="text-base font-medium">
-                  <User className="w-4 h-4 inline mr-2" />
-                  Dados do Cliente
-                </Label>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="cliente_nome">Nome completo *</Label>
-                    <Input
-                      id="cliente_nome"
-                      value={formData.cliente_nome}
-                      onChange={(e) => setFormData(prev => ({ ...prev, cliente_nome: e.target.value }))}
-                      placeholder="Nome do cliente"
-                      pattern="[a-zA-ZÀ-ÿ\s'-]{2,}"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="cliente_telefone">Telefone/WhatsApp *</Label>
-                    <Input
-                      id="cliente_telefone"
-                      type="tel"
-                      value={formData.cliente_telefone}
-                      onChange={handlePhoneChange}
-                      placeholder="(17) 9 9999-9999"
-                      maxLength={16}
-                      required
-                    />
-                  </div>
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+          {/* Formulário */}
+          <form onSubmit={handleSubmit} className="space-y-6 rounded-3xl border border-border/60 bg-card p-4 shadow-brand-sm sm:p-6">
+            <Etapa numero={1} titulo="Cliente" icone={User}>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="cliente_nome">Nome completo *</Label>
+                  <Input
+                    id="cliente_nome"
+                    value={formData.cliente_nome}
+                    onChange={(e) => setFormData(prev => ({ ...prev, cliente_nome: e.target.value }))}
+                    placeholder="Nome do cliente"
+                    pattern="[a-zA-ZÀ-ÿ\s'-]{2,}"
+                    required
+                  />
                 </div>
-
-                <div>
-                  <Label htmlFor="cliente_email">E-mail (opcional)</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="cliente_telefone">Telefone/WhatsApp *</Label>
+                  <Input
+                    id="cliente_telefone"
+                    type="tel"
+                    value={formData.cliente_telefone}
+                    onChange={handlePhoneChange}
+                    placeholder="(17) 9 9999-9999"
+                    maxLength={16}
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5 md:col-span-2">
+                  <Label htmlFor="cliente_email">E-mail <span className="font-normal text-muted-foreground">(opcional)</span></Label>
                   <Input
                     id="cliente_email"
                     type="email"
@@ -435,121 +407,182 @@ export default function NewAppointment() {
                   />
                 </div>
               </div>
+            </Etapa>
 
-              {/* Serviço e Profissional */}
-              <div className="space-y-4">
-                <Label className="text-base font-medium">Serviço e Profissional</Label>
+            <Etapa numero={2} titulo="Serviço e profissional" icone={Scissors}>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="servico_id">Serviço *</Label>
+                  <Select
+                    value={formData.servico_id}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, servico_id: value }))}
+                  >
+                    <SelectTrigger id="servico_id">
+                      <SelectValue placeholder="Selecione o serviço" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {services.map((service) => (
+                        <SelectItem key={service.id} value={service.id}>
+                          {service.nome} · {formatBRL(Number(service.valor))} · {service.duracao_minutos} min
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="servico_id">Serviço *</Label>
+                {(employees.length > 1 || profissionalPendente) && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="funcionario_id">{profissionalPendente ? "Profissional *" : "Profissional (opcional)"}</Label>
                     <Select
-                      value={formData.servico_id}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, servico_id: value }))}
+                      value={formData.funcionario_id}
+                      onValueChange={(value) => {
+                        setProfissionalPendente(false);
+                        setFormData(prev => ({ ...prev, funcionario_id: value }));
+                      }}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o serviço" />
+                      <SelectTrigger id="funcionario_id">
+                        <SelectValue placeholder="Qualquer profissional" />
                       </SelectTrigger>
                       <SelectContent>
-                        {services.map((service) => (
-                          <SelectItem key={service.id} value={service.id}>
-                            {service.nome} - R$ {Number(service.valor).toFixed(2)} ({service.duracao_minutos}min)
-                          </SelectItem>
+                        {employees.map((employee) => (
+                          <SelectItem key={employee.id} value={employee.id}>{employee.nome}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-
-                  {(employees.length > 1 || profissionalPendente) && (
-                    <div>
-                      <Label htmlFor="funcionario_id">{profissionalPendente ? "Profissional *" : "Profissional (opcional)"}</Label>
-                      <Select
-                        value={formData.funcionario_id}
-                        onValueChange={(value) => {
-                          setProfissionalPendente(false);
-                          setFormData(prev => ({ ...prev, funcionario_id: value }));
-                        }}
-                      >
-                        <SelectTrigger id="funcionario_id">
-                          <SelectValue placeholder="Qualquer profissional" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {employees.map((employee) => (
-                            <SelectItem key={employee.id} value={employee.id}>
-                              {employee.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                  {employees.length === 1 && !profissionalPendente && (
-                    <div>
-                      <Label htmlFor="profissional-unico">Profissional</Label>
-                      <Input id="profissional-unico" value={employees[0].nome} readOnly />
-                    </div>
-                  )}
-                </div>
+                )}
+                {employees.length === 1 && !profissionalPendente && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="profissional-unico">Profissional</Label>
+                    <Input id="profissional-unico" value={employees[0].nome} readOnly />
+                  </div>
+                )}
               </div>
+            </Etapa>
 
-              {/* Data e Hora */}
+            <Etapa numero={3} titulo="Data e horário" icone={Calendar}>
               <div className="space-y-4">
-                <Label className="text-base font-medium">
-                  <Calendar className="w-4 h-4 inline mr-2" />
-                  Data e Horário
-                </Label>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="data">Data *</Label>
-                    <Input
-                      id="data"
-                      type="date"
-                      value={formData.data}
-                      onChange={(e) => setFormData(prev => ({ ...prev, data: e.target.value }))}
-                      min={dataLocalISO(new Date())}
-                      required
+                <div className="space-y-1.5 sm:max-w-xs">
+                  <Label htmlFor="data">Data *</Label>
+                  <Input
+                    id="data"
+                    type="date"
+                    value={formData.data}
+                    onChange={(e) => setFormData(prev => ({ ...prev, data: e.target.value }))}
+                    min={dataLocalISO(new Date())}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Horário *</p>
+                  {loadingTimes ? (
+                    <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Consultando horários...
+                    </p>
+                  ) : !formData.data || !formData.servico_id || profissionalPendente ? (
+                    <p className="rounded-2xl border border-dashed border-input p-4 text-center text-sm text-muted-foreground">
+                      {placeholderHorario}
+                    </p>
+                  ) : (
+                    <TimeSlotGrid
+                      slots={availableTimes}
+                      selected={formData.hora || null}
+                      onSelect={(hora) => setFormData(prev => ({ ...prev, hora }))}
                     />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="hora">Horário *</Label>
-                    <Select
-                      value={formData.hora}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, hora: value }))}
-                      disabled={loadingTimes || !temHorarioLivre}
-                    >
-                      <SelectTrigger id="hora">
-                        <SelectValue placeholder={placeholderHorario} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableTimes.map((horario) => (
-                          <SelectItem key={horario.time} value={horario.time} disabled={!horario.isAvailable}>
-                            {horario.time}{horario.isAvailable ? "" : " (ocupado)"}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {horaPedida && formData.data && formData.servico_id && !profissionalPendente && !loadingTimes && !formData.hora && (
-                      <p role="status" className="mt-1 text-sm text-muted-foreground">
-                        {horaPedida} está indisponível. Escolha outro horário.
-                      </p>
-                    )}
-                  </div>
+                  )}
+                  {horaPedida && formData.data && formData.servico_id && !profissionalPendente && !loadingTimes && !formData.hora && (
+                    <p role="status" className="text-sm text-muted-foreground">
+                      {horaPedida} está indisponível. Escolha outro horário.
+                    </p>
+                  )}
                 </div>
               </div>
+            </Etapa>
 
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isSubmitting || interpretando || loadingTimes || profissionalPendente}
-              >
-                {isSubmitting ? "Criando agendamento..." : "Criar Agendamento"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full"
+              disabled={isSubmitting || interpretando || loadingTimes || profissionalPendente || !formData.hora}
+            >
+              {isSubmitting ? <Loader2 className="animate-spin" /> : <CalendarCheck />}
+              {isSubmitting ? "Criando agendamento..." : "Criar agendamento"}
+            </Button>
+          </form>
+
+          {/* Lateral: IA e resumo */}
+          <aside className="space-y-4 lg:sticky lg:top-20">
+            <section className="rounded-3xl border border-primary/25 bg-primary/5 p-5">
+              <h2 className="mb-1 flex items-center gap-2 font-semibold">
+                <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
+                Agendar com IA
+              </h2>
+              <p className="mb-3 text-sm text-muted-foreground">Escreva o pedido e o formulário é preenchido para você.</p>
+              <form onSubmit={interpretarPedido} className="space-y-3">
+                <Label htmlFor="comando-agendamento" className="sr-only">Descreva o agendamento</Label>
+                <Textarea
+                  id="comando-agendamento"
+                  value={comando}
+                  onChange={(e) => setComando(e.target.value)}
+                  placeholder="Corte amanhã às 13:00 para Kayky com Daniel."
+                  maxLength={500}
+                  rows={3}
+                  autoFocus={searchParams.get("assistente") === "1"}
+                  disabled={interpretando || isSubmitting}
+                  className="bg-background"
+                />
+                <Button type="submit" variant="secondary" className="w-full" disabled={!comando.trim() || interpretando || isSubmitting}>
+                  {interpretando ? "Interpretando pedido..." : "Preencher formulário"}
+                </Button>
+                {avisoIA && <p className="text-sm text-muted-foreground" role="status">{avisoIA}</p>}
+              </form>
+            </section>
+
+            <section aria-label="Resumo do agendamento" className="rounded-3xl border border-border/60 bg-card p-5 shadow-brand-sm">
+              <h2 className="mb-3 font-semibold">Resumo</h2>
+              <dl className="space-y-2 text-sm">
+                {[
+                  ["Cliente", formData.cliente_nome || "—"],
+                  ["Serviço", servicoEscolhido ? `${servicoEscolhido.nome} · ${servicoEscolhido.duracao_minutos} min` : "—"],
+                  ["Profissional", profissionalEscolhido?.nome ?? "Qualquer profissional"],
+                  ["Data", formData.data ? new Date(`${formData.data}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" }) : "—"],
+                  ["Horário", formData.hora || "—"],
+                ].map(([rotulo, valor]) => (
+                  <div key={rotulo} className="flex justify-between gap-3">
+                    <dt className="text-muted-foreground">{rotulo}</dt>
+                    <dd className="truncate text-right font-medium">{valor}</dd>
+                  </div>
+                ))}
+                {servicoEscolhido && (
+                  <div className="flex justify-between gap-3 border-t border-border/60 pt-2">
+                    <dt className="text-muted-foreground">Valor</dt>
+                    <dd className="font-display text-base font-bold">{formatBRL(Number(servicoEscolhido.valor))}</dd>
+                  </div>
+                )}
+              </dl>
+            </section>
+          </aside>
+        </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+/** Seção numerada do formulário */
+function Etapa({ numero, titulo, icone: Icone, children }: {
+  numero: number;
+  titulo: string;
+  icone: LucideIcon;
+  children: ReactNode;
+}) {
+  return (
+    <fieldset className="space-y-4 border-b border-border/60 pb-6 last-of-type:border-0 last-of-type:pb-0">
+      <legend className="flex items-center gap-2.5 font-semibold">
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{numero}</span>
+        <Icone className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+        {titulo}
+      </legend>
+      {children}
+    </fieldset>
   );
 }

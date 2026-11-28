@@ -1,3 +1,5 @@
+import { AgendemIcon } from "@/components/AgendemIcon";
+import { PillDeslizante } from "@/components/PillDeslizante";
 import { NavLink } from "react-router-dom";
 import { ChevronUp, LogOut } from "lucide-react";
 import {
@@ -51,10 +53,9 @@ export function AppSidebar() {
     }
   };
 
-  const getNavCls = ({ isActive }: { isActive: boolean }) =>
-    isActive
-      ? "bg-primary/10 text-primary font-medium border-l-2 border-primary"
-      : "hover:bg-muted/50 text-gray-900 dark:text-white hover:text-gray-900 dark:hover:text-white";
+  // O SidebarMenuButton (asChild) não repassa a função de className do NavLink,
+  // então o estado ativo é estilizado pelo aria-current que o NavLink coloca.
+  const itemMenu = "flex items-center gap-3 rounded-xl px-3 py-2.5 text-muted-foreground transition-colors duration-500 hover:bg-muted/60 hover:text-foreground aria-[current=page]:bg-transparent aria-[current=page]:font-medium aria-[current=page]:text-primary-foreground aria-[current=page]:hover:bg-transparent aria-[current=page]:hover:text-primary-foreground aria-[current=page]:active:bg-transparent";
 
   const handleLogout = async () => {
     try {
@@ -102,24 +103,24 @@ export function AppSidebar() {
     <Sidebar
       collapsible="icon"
     >
-      <SidebarHeader className={collapsed ? "border-b border-border/50 p-2" : "border-b border-border/50 p-4"}>
+      <SidebarHeader className={collapsed ? "p-2 py-4" : "px-5 py-5"}>
         {!collapsed ? (
           <div className="flex items-center gap-3">
-            <img src="/icon-agendem.svg" alt="agendem" className="w-8 h-8" />
+            <AgendemIcon className="w-8 h-8 text-primary" />
             <div>
-              <h2 className="font-semibold text-sm text-gray-900 dark:text-white">agendem</h2>
-              <p className="text-xs text-muted-foreground">Sistema de Gestão</p>
+              <h2 className="font-display text-lg font-bold leading-tight tracking-tight">Agendem</h2>
+              <p className="text-xs text-muted-foreground">Painel da barbearia</p>
             </div>
           </div>
         ) : (
-          <img src="/icon-agendem.svg" alt="agendem" className="w-8 h-8 mx-auto" />
+          <AgendemIcon className="w-8 h-8 mx-auto text-primary" />
         )}
       </SidebarHeader>
 
       <SidebarContent role="navigation" aria-label="Navegação do painel" className="flex-1">
         <SidebarGroup>
           <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>
-            {authLoading ? <Skeleton className="h-4 w-24" /> : (isAdmin ? "Administração" : "Funcionário")}
+            {authLoading ? <Skeleton className="h-4 w-24" /> : "Menu"}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <AnimatePresence mode="wait">
@@ -130,7 +131,8 @@ export function AppSidebar() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
               >
-                <SidebarMenu>
+                <PillDeslizante id="painel-menu">
+                <SidebarMenu className="gap-1">
                   {authLoading ? (
                     <>
                       {[...Array(5)].map((_, i) => (
@@ -149,7 +151,7 @@ export function AppSidebar() {
                           <NavLink
                             to={item.url}
                             end
-                            className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md transition-all ${getNavCls({ isActive })}`}
+                            className={itemMenu}
                             onClick={handleItemClick} // Close sidebar on mobile
                             aria-label={item.title}
                             title={item.title}
@@ -162,14 +164,16 @@ export function AppSidebar() {
                     ))
                   )}
                 </SidebarMenu>
+                </PillDeslizante>
               </motion.div>
             </AnimatePresence>
           </SidebarGroupContent>
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>Ações Rápidas</SidebarGroupLabel>
+          <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>Atalhos</SidebarGroupLabel>
           <SidebarGroupContent>
+            <PillDeslizante id="painel-atalhos">
             <SidebarMenu>
               {quick.map((item) => (
                 <SidebarMenuItem key={item.url}>
@@ -177,7 +181,7 @@ export function AppSidebar() {
                     <NavLink
                       to={item.url}
                       end
-                      className={getNavCls}
+                      className={itemMenu}
                       onClick={handleItemClick}
                       aria-label={item.title}
                       title={item.title}
@@ -189,6 +193,7 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
+            </PillDeslizante>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
@@ -202,7 +207,7 @@ export function AppSidebar() {
                 <Button variant="ghost" aria-label="Menu da conta" className="h-auto w-full min-w-0 justify-between p-2 hover:bg-muted/50">
                   <div className="flex min-w-0 items-center gap-3">
                     <Avatar className="w-8 h-8">
-                      <AvatarFallback className="bg-gradient-primary text-white text-xs">
+                      <AvatarFallback className="bg-gradient-primary text-primary-foreground text-xs">
                         {authLoading ? '...' : userInitials}
                       </AvatarFallback>
                     </Avatar>
@@ -241,7 +246,7 @@ export function AppSidebar() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="w-8 h-8" aria-label="Menu da conta">
                   <Avatar className="w-8 h-8">
-                    <AvatarFallback className="bg-gradient-primary text-white text-xs">
+                    <AvatarFallback className="bg-gradient-primary text-primary-foreground text-xs">
                       {authLoading ? '...' : userInitials}
                     </AvatarFallback>
                   </Avatar>

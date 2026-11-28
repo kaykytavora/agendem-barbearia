@@ -211,9 +211,9 @@ export function AIAssistantChat({ onClose }: { onClose: () => void }) {
             <Sparkles className="w-4 h-4 text-primary" />
           </div>
           <div>
-            <p className="font-semibold text-sm">Assistente agendem</p>
+            <p className="font-semibold text-sm">Assistente Agendem</p>
             <p className="text-xs text-muted-foreground">
-              Encontre a barbearia ideal ✂️
+              Tire dúvidas e encontre barbearias
             </p>
           </div>
         </div>
@@ -351,9 +351,6 @@ export function AIAssistantChat({ onClose }: { onClose: () => void }) {
             )}
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground text-center mt-2">
-          Powered by Gemini AI ✨
-        </p>
       </div>
     </div>
   );

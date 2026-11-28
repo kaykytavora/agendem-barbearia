@@ -4,27 +4,22 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { hexToHslParts } from "@/lib/utils";
 import imageCompression from 'browser-image-compression';
 import { usePhoneMask } from "@/hooks/usePhoneMask";
 import { useCepMask } from "@/hooks/useCepMask";
-import { useNavigate } from "react-router-dom";
 
 import { createContext, useContext } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { COR_PADRAO, DAYS_OF_WEEK, type Barbershop, type ThemeConfig, type WorkingHours } from "./types";
+import { DAYS_OF_WEEK, type Barbershop, type WorkingHours } from "./types";
 
 /** Estado e ações da tela de configurações (dados da barbearia, horários, tema e imagens). */
 export function useBarbershopSettings() {
-  const { user, signOut } = useAuth(); // Importar signOut
-  const navigate = useNavigate(); // Importar useNavigate
+  const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isFetchingCep, setIsFetchingCep] = useState(false);
   const [barbeariaId, setBarbeariaId] = useState<string | null>(null);
-  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // Hooks para máscaras de input
   const { value: phone, handleChange: handlePhoneChange, setValue: setPhoneValue } = usePhoneMask();
@@ -35,6 +30,7 @@ export function useBarbershopSettings() {
     slug: '',
     nome: '',
     descricao: '',
+    desativada_em: null,
     telefone: '',
     email_contato: '',
     cep: '',
@@ -46,7 +42,6 @@ export function useBarbershopSettings() {
   });
 
   const [workingHours, setWorkingHours] = useState<WorkingHours[]>([]);
-  const [themeConfig, setThemeConfig] = useState<ThemeConfig>({ primary: COR_PADRAO });
   const [totalServicos, setTotalServicos] = useState<number | null>(null);
   const [hoursError, setHoursError] = useState(false);
   const queryClient = useQueryClient();
@@ -113,6 +108,7 @@ export function useBarbershopSettings() {
           slug: data.slug || '',
           nome: data.nome,
           descricao: data.descricao || '',
+          desativada_em: data.desativada_em ?? null,
           telefone: data.telefone || '',
           email_contato: data.email_contato || '',
           cep: data.cep || '',
@@ -124,8 +120,6 @@ export function useBarbershopSettings() {
         });
         setPhoneValue(data.telefone || '');
         setCepValue(data.cep || '');
-        const cores = data.cores_personalizadas as Record<string, string> | null;
-        if (cores?.primary) setThemeConfig({ primary: cores.primary });
       }
 
       const { count } = await supabase
@@ -141,7 +135,7 @@ export function useBarbershopSettings() {
         variant: "destructive"
       });
     }
-  }, [barbeariaId, toast, setCepValue, setPhoneValue, setBarbershop, setThemeConfig]);
+  }, [barbeariaId, toast, setCepValue, setPhoneValue, setBarbershop]);
 
   const loadWorkingHours = useCallback(async () => {
     if (!barbeariaId) return;
@@ -368,45 +362,6 @@ export function useBarbershopSettings() {
     }
   };
 
-  const handleDeleteBarbershop = async () => {
-    if (deleteConfirmationText !== "DELETAR") {
-      toast({
-        title: "Confirmação incorreta",
-        description: "Você precisa digitar 'DELETAR' para confirmar a exclusão.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsDeleting(true);
-    try {
-      const { error } = await supabase.functions.invoke("delete-barbershop", {
-        body: { barbearia_id: barbershop.id }
-      });
-      if (error) throw new Error(error.message);
-
-      toast({
-        title: "Sua barbearia foi excluída",
-        description: "Você será desconectado e redirecionado.",
-      });
-
-      // Chama o signOut do contexto para limpar o estado e a sessão
-      await signOut();
-
-      // Navega para a home após o estado ser limpo
-      navigate('/');
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Não foi possível completar a solicitação.';
-      toast({
-        title: "Erro ao excluir barbearia",
-        description: errorMessage,
-        variant: "destructive",
-      });
-      setIsDeleting(false); // Garante que o estado de loading seja resetado em caso de erro
-    }
-  };
-
   const handleCepBlur = async (cep: string) => {
     const cleanedCep = cep.replace(/\D/g, '');
 
@@ -441,36 +396,6 @@ export function useBarbershopSettings() {
       });
     } finally {
       setIsFetchingCep(false);
-    }
-  };
-
-  const handleThemeSubmit = async () => {
-    if (!barbeariaId) return;
-
-    setSaving(true);
-
-    try {
-      if (!hexToHslParts(themeConfig.primary)) throw new Error("Use uma cor no formato #RRGGBB.");
-      const { error } = await supabase
-        .from('barbearias')
-        .update({ cores_personalizadas: { primary: themeConfig.primary.toUpperCase() } })
-        .eq('id', barbeariaId);
-      if (error) throw error;
-      atualizarPaginaPublica();
-
-      toast({
-        title: "Cor salva",
-        description: "Sua página já aparece com a nova cor para os clientes."
-      });
-    } catch (error) {
-      console.error('Erro ao salvar tema:', error);
-      toast({
-        title: "Erro",
-        description: (error as Error)?.message || "Erro ao salvar tema",
-        variant: "destructive"
-      });
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -541,7 +466,6 @@ export function useBarbershopSettings() {
     setWorkingHours(prev => prev.map(hour => (hour.fechado ? hour : { ...hour, hora_abre: origem.hora_abre, hora_fecha: origem.hora_fecha })));
   };
 
-  const setPrimaryColor = (hex: string) => setThemeConfig({ primary: hex });
 
   // useEffects
   useEffect(() => {
@@ -557,7 +481,7 @@ export function useBarbershopSettings() {
     }
   }, [barbeariaId, loadBarbershopData, loadWorkingHours]);
 
-  return { user, signOut, navigate, toast, loading, setLoading, saving, setSaving, isFetchingCep, setIsFetchingCep, barbeariaId, setBarbeariaId, deleteConfirmationText, setDeleteConfirmationText, isDeleting, setIsDeleting, phone, handlePhoneChange, setPhoneValue, cep, handleCepChange, setCepValue, barbershop, setBarbershop, workingHours, setWorkingHours, themeConfig, setThemeConfig, uploadingStates, setUploadingStates, loadBarbeariaId, loadBarbershopData, loadWorkingHours, handleBarbershopSubmit, handleImageUpload, handleImageRemove, handleDeleteBarbershop, handleCepBlur, handleThemeSubmit, handleWorkingHoursSubmit, updateWorkingHour, copyHoursToOpenDays, setPrimaryColor, totalServicos, hoursError };
+  return { user, toast, loading, setLoading, saving, setSaving, isFetchingCep, setIsFetchingCep, barbeariaId, setBarbeariaId, phone, handlePhoneChange, setPhoneValue, cep, handleCepChange, setCepValue, barbershop, setBarbershop, workingHours, setWorkingHours, uploadingStates, setUploadingStates, loadBarbeariaId, loadBarbershopData, loadWorkingHours, handleBarbershopSubmit, handleImageUpload, handleImageRemove, handleCepBlur, atualizarPaginaPublica, handleWorkingHoursSubmit, updateWorkingHour, copyHoursToOpenDays, totalServicos, hoursError };
 }
 
 export type BarbershopSettings = ReturnType<typeof useBarbershopSettings>;

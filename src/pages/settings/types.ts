@@ -4,6 +4,7 @@ export interface Barbershop {
   slug: string;
   nome: string;
   descricao: string;
+  desativada_em: string | null;
   telefone: string;
   email_contato: string;
   cep: string;
@@ -21,27 +22,6 @@ export interface WorkingHours {
   fechado: boolean;
 }
 
-/**
- * Personalização visível para o cliente. A página pública usa só a cor principal
- * (cabeçalho, botões, horário escolhido); claro/escuro fica a critério de quem visita.
- */
-export interface ThemeConfig {
-  primary: string;
-}
-
-export const COR_PADRAO = '#4E42FF';
-
-export const CORES_SUGERIDAS: { name: string; hex: string }[] = [
-  { name: "Agendem", hex: COR_PADRAO },
-  { name: "Azul", hex: '#2563EB' },
-  { name: "Petróleo", hex: '#0F766E' },
-  { name: "Verde", hex: '#15803D' },
-  { name: "Vinho", hex: '#9F1239' },
-  { name: "Rosa", hex: '#DB2777' },
-  { name: "Laranja", hex: '#EA580C' },
-  { name: "Café", hex: '#7C4A1E' },
-];
-
 export const DAYS_OF_WEEK = [
   { value: 0, label: 'Domingo' },
   { value: 1, label: 'Segunda-feira' },
@@ -51,4 +31,3 @@ export const DAYS_OF_WEEK = [
   { value: 5, label: 'Sexta-feira' },
   { value: 6, label: 'Sábado' }
 ];
-
